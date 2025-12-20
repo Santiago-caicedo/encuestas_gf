@@ -1,0 +1,126 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex items-center gap-4">
+        <div class="p-3 bg-slate-900 rounded-lg text-white">
+            <i class="fas fa-users-cog text-xl"></i>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Gestión de Equipo</h1>
+            <p class="text-sm text-slate-500">Administra quién tiene acceso al panel de control.</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <div class="lg:col-span-1">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 sticky top-6">
+                <h3 class="font-bold text-slate-800 border-b pb-3 mb-4">Agregar Nuevo Miembro</h3>
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario (Login)</label>
+                            {{ form.username }}
+                            <p class="text-[10px] text-slate-400 mt-1">Sin espacios (ej: m.rodriguez)</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre</label>
+                                {{ form.first_name }}
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Apellido</label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Correo Electrónico</label>
+                            {{ form.email }}
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
+                            {{ form.password }}
+                        </div>
+
+                        <div class="pt-2">
+                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md">
+                                <i class="fas fa-user-plus mr-2"></i> Crear Usuario
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <span class="font-bold text-slate-700 text-sm">Usuarios Activos: {{ usuarios.count }}</span>
+                </div>
+
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-white text-slate-500 font-bold uppercase text-xs border-b">
+                        <tr>
+                            <th class="px-6 py-3">Usuario</th>
+                            <th class="px-6 py-3">Rol</th>
+                            <th class="px-6 py-3">Estado</th>
+                            <th class="px-6 py-3 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for u in usuarios %}
+                        <tr class="hover:bg-slate-50 transition-colors group">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 uppercase">
+                                        {{ u.username|slice:":2" }}
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-slate-800">{{ u.first_name }} {{ u.last_name }}</p>
+                                        <p class="text-xs text-slate-500">{{ u.email }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if u.is_superuser %}
+                                    <span class="px-2 py-1 rounded bg-purple-100 text-purple-700 text-[10px] font-bold border border-purple-200">SUPER ADMIN</span>
+                                {% elif u.is_staff %}
+                                    <span class="px-2 py-1 rounded bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200">STAFF / EQUIPO</span>
+                                {% else %}
+                                    <span class="px-2 py-1 rounded bg-gray-100 text-gray-600 text-[10px] font-bold border border-gray-200">USUARIO</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if u.is_active %}
+                                    <span class="text-green-500 font-bold text-xs flex items-center gap-1"><i class="fas fa-circle text-[8px]"></i> Activo</span>
+                                {% else %}
+                                    <span class="text-red-500 font-bold text-xs flex items-center gap-1"><i class="fas fa-circle text-[8px]"></i> Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                {% if u.id != request.user.id %}
+                                    <a href="{% url 'eliminar_usuario' u.id %}" onclick="return confirm('¿Estás seguro de eliminar a {{ u.username }}? Esta acción no se puede deshacer.')" class="text-slate-400 hover:text-red-600 transition-colors p-2" title="Eliminar Usuario">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="text-xs text-slate-300 italic">Tú</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

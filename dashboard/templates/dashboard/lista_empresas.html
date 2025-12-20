@@ -1,0 +1,239 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Directorio de Clientes</h1>
+            <p class="text-sm text-slate-500">Gestiona accesos, identidades y servicios.</p>
+        </div>
+        <div>
+            <a href="{% url 'crear_empresa' %}" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all">
+                <i class="fas fa-plus mr-2"></i> Nueva Empresa
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center">
+        
+        <form method="GET" class="flex flex-1 w-full md:w-auto gap-3 items-center">
+            
+            <div class="relative flex-1 max-w-md">
+                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" name="q" value="{{ query }}" placeholder="Buscar empresa..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            </div>
+
+            <select name="aliado" onchange="this.form.submit()" class="py-2 pl-3 pr-8 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hidden md:block">
+                <option value="">Todos los Gestores</option>
+                <option value="GFR" {% if filtro_aliado == 'GFR' %}selected{% endif %}>Gestión Financiera</option>
+                <option value="LEGAL_SHIELD" {% if filtro_aliado == 'LEGAL_SHIELD' %}selected{% endif %}>Legal Shield</option>
+            </select>
+
+            {% if query or filtro_aliado %}
+                <a href="{% url 'lista_empresas' %}" class="text-slate-400 hover:text-red-500 transition-colors" title="Limpiar filtros">
+                    <i class="fas fa-times-circle text-lg"></i>
+                </a>
+            {% endif %}
+        </form>
+
+        <div class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
+            <button onclick="switchView('grid')" id="btn-grid" class="p-2 rounded-md text-slate-500 hover:text-slate-800 transition-all shadow-sm bg-white">
+                <i class="fas fa-th-large"></i>
+            </button>
+            <button onclick="switchView('list')" id="btn-list" class="p-2 rounded-md text-slate-500 hover:text-slate-800 transition-all">
+                <i class="fas fa-list"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="view-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+        {% for empresa in empresas %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow duration-300 flex flex-col group">
+            
+            <div class="h-1.5 w-full" style="background-color: {{ empresa.color_primario }}"></div>
+            
+            <div class="p-5 flex-1 flex flex-col">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        {% if empresa.logo %}
+                            <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="h-12 w-12 rounded-lg object-contain border border-slate-100 bg-gray-50 p-1">
+                        {% else %}
+                            <div class="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xl">
+                                {{ empresa.nombre|slice:":1" }}
+                            </div>
+                        {% endif %}
+                        <div class="overflow-hidden">
+                            <h3 class="font-bold text-slate-800 text-lg leading-tight truncate w-40" title="{{ empresa.nombre }}">{{ empresa.nombre }}</h3>
+                            <span class="text-xs text-slate-400 font-mono">/{{ empresa.slug }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if empresa.aliado == 'GFR' %}
+                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold" title="Gestión Financiera">GFR</span>
+                    {% else %}
+                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold" title="Legal Shield">LS</span>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4 flex flex-wrap gap-2 min-h-[24px]">
+                    {% if empresa.tiene_sagrilaft %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">SAGRILAFT</span>
+                    {% endif %}
+                    {% if empresa.tiene_ptee %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">PTEE</span>
+                    {% endif %}
+                </div>
+
+                <div class="mt-auto pt-4 border-t border-slate-100">
+                    <div class="flex gap-2">
+                        <input type="text" value="{{ request.scheme }}://{{ request.get_host }}{% url 'ver_encuesta' empresa.slug %}" id="link-g-{{ empresa.id }}" class="w-full text-xs p-2 border rounded bg-slate-50 text-slate-500 focus:outline-none truncate" readonly>
+                        <button onclick="copiarLink('link-g-{{ empresa.id }}')" class="text-slate-400 hover:text-blue-600 px-2"><i class="fas fa-copy"></i></button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 mt-3">
+                        <a href="{% url 'ver_metricas' empresa.id %}" class="flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-50 text-slate-600 text-xs font-bold hover:bg-slate-100 transition-colors">
+                            <i class="fas fa-chart-pie"></i> Métricas
+                        </a>
+                        <a href="{% url 'editar_empresa' empresa.id %}" class="flex items-center justify-center gap-2 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-bold hover:border-blue-300 hover:text-blue-600 transition-colors">
+                            <i class="fas fa-pen"></i> Editar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+            <div class="col-span-full py-12 text-center text-slate-400">No se encontraron empresas con esos criterios.</div>
+        {% endfor %}
+    </div>
+
+    <div id="view-list" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-fade-in">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-4">Empresa</th>
+                        <th class="px-6 py-4">Servicios</th>
+                        <th class="px-6 py-4">Gestor</th>
+                        <th class="px-6 py-4">Enlace Público</th>
+                        <th class="px-6 py-4 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for empresa in empresas %}
+                    <tr class="hover:bg-slate-50/50 transition-colors group">
+                        <td class="px-6 py-3">
+                            <div class="flex items-center gap-3">
+                                {% if empresa.logo %}
+                                    <img src="{{ empresa.logo.url }}" class="h-10 w-10 rounded object-contain border border-slate-200 bg-white p-0.5">
+                                {% else %}
+                                    <div class="h-10 w-10 rounded bg-slate-100 flex items-center justify-center text-slate-400 font-bold">{{ empresa.nombre|slice:":1" }}</div>
+                                {% endif %}
+                                <div>
+                                    <p class="font-bold text-slate-800 text-sm">{{ empresa.nombre }}</p>
+                                    <p class="text-xs text-slate-400 font-mono">/{{ empresa.slug }}</p>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-3">
+                            <div class="flex gap-2">
+                                {% if empresa.tiene_sagrilaft %}
+                                    <span class="px-2 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">SAGRILAFT</span>
+                                {% endif %}
+                                {% if empresa.tiene_ptee %}
+                                    <span class="px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">PTEE</span>
+                                {% endif %}
+                                {% if not empresa.tiene_sagrilaft and not empresa.tiene_ptee %}
+                                    <span class="text-xs text-slate-400">-</span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-3">
+                            {% if empresa.aliado == 'GFR' %}
+                                <span class="text-xs font-semibold text-slate-600 flex items-center gap-1"><i class="fas fa-shield-alt text-blue-400"></i> GFR</span>
+                            {% else %}
+                                <span class="text-xs font-semibold text-slate-600 flex items-center gap-1"><i class="fas fa-balance-scale text-purple-400"></i> Legal Shield</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="px-6 py-3">
+                            <div class="flex items-center gap-2 max-w-[200px]">
+                                <input type="text" value="{{ request.scheme }}://{{ request.get_host }}{% url 'ver_encuesta' empresa.slug %}" id="link-l-{{ empresa.id }}" class="w-full text-xs p-1.5 border rounded bg-slate-50 text-slate-500 focus:outline-none truncate" readonly>
+                                <button onclick="copiarLink('link-l-{{ empresa.id }}')" class="text-slate-400 hover:text-blue-600"><i class="fas fa-copy"></i></button>
+                                <a href="{% url 'ver_encuesta' empresa.slug %}" target="_blank" class="text-slate-400 hover:text-blue-600"><i class="fas fa-external-link-alt"></i></a>
+                            </div>
+                        </td>
+
+                        <td class="px-6 py-3 text-right">
+                            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <a href="{% url 'ver_metricas' empresa.id %}" class="p-2 rounded hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Métricas">
+                                    <i class="fas fa-chart-pie"></i>
+                                </a>
+                                <a href="{% url 'editar_empresa' empresa.id %}" class="p-2 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors" title="Editar">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                        <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">No se encontraron empresas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // 1. Función Copiar Link
+    function copiarLink(id) {
+        var copyText = document.getElementById(id);
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); 
+        navigator.clipboard.writeText(copyText.value);
+        
+        // Feedback visual temporal
+        copyText.classList.add('ring-2', 'ring-green-500', 'border-green-500');
+        setTimeout(() => {
+            copyText.classList.remove('ring-2', 'ring-green-500', 'border-green-500');
+        }, 500);
+    }
+
+    // 2. Lógica Switch View (Grid/List)
+    function switchView(view) {
+        const gridView = document.getElementById('view-grid');
+        const listView = document.getElementById('view-list');
+        const btnGrid = document.getElementById('btn-grid');
+        const btnList = document.getElementById('btn-list');
+
+        if (view === 'list') {
+            gridView.classList.add('hidden');
+            listView.classList.remove('hidden');
+            
+            // Estilos botón activo
+            btnList.classList.add('bg-white', 'shadow-sm', 'text-slate-800');
+            btnGrid.classList.remove('bg-white', 'shadow-sm', 'text-slate-800');
+            
+            localStorage.setItem('empresas_view', 'list');
+        } else {
+            listView.classList.add('hidden');
+            gridView.classList.remove('hidden');
+            
+            // Estilos botón activo
+            btnGrid.classList.add('bg-white', 'shadow-sm', 'text-slate-800');
+            btnList.classList.remove('bg-white', 'shadow-sm', 'text-slate-800');
+            
+            localStorage.setItem('empresas_view', 'grid');
+        }
+    }
+
+    // 3. Cargar preferencia al inicio
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedView = localStorage.getItem('empresas_view') || 'grid';
+        switchView(savedView);
+    });
+</script>
+{% endblock %}

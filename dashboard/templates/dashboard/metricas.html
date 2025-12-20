@@ -1,0 +1,360 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Tablero Estratégico: {{ empresa.nombre }}</h1>
+            <p class="text-sm text-slate-500">
+                Visualizando resultados del periodo: 
+                <span class="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{{ anio_seleccionado }}</span>
+            </p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-2">
+            
+            <form method="GET" class="flex items-center bg-white border border-slate-300 rounded-lg overflow-hidden shadow-sm hover:border-blue-400 transition-colors">
+                <div class="px-3 bg-slate-50 text-slate-500 text-xs font-bold border-r border-slate-200 py-2.5 flex items-center">
+                    <i class="far fa-calendar-alt mr-2"></i> AÑO
+                </div>
+                <select name="vigencia" onchange="this.form.submit()" class="py-2 pl-2 pr-8 text-sm font-bold text-slate-700 bg-white outline-none cursor-pointer hover:bg-slate-50 appearance-none min-w-[80px]">
+                    {% for anio in lista_anios %}
+                        <option value="{{ anio }}" {% if anio == anio_seleccionado %}selected{% endif %}>
+                            {{ anio }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            <div class="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div> <a href="{% url 'dashboard_home' %}" class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-600 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Volver
+            </a>
+            <a href="{% url 'ver_encuesta' empresa.slug %}" target="_blank" class="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors shadow-sm">
+                <i class="fas fa-external-link-alt mr-2"></i> Ver Encuesta
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+            <div class="flex justify-between items-start">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Registros ({{ anio_seleccionado }})</div>
+                <div class="p-2 bg-blue-50 rounded-lg text-blue-600">
+                    <i class="fas fa-users"></i>
+                </div>
+            </div>
+            <div class="text-3xl font-bold text-slate-800 mt-2">{{ total }}</div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+            <div class="flex justify-between items-start">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Última Respuesta</div>
+                <div class="p-2 bg-green-50 rounded-lg text-green-600">
+                    <i class="far fa-clock"></i>
+                </div>
+            </div>
+            <div class="text-lg font-bold text-slate-800 mt-2 truncate">
+                {{ registros.first.fecha_registro|date:"d M Y"|default:"-" }}
+            </div>
+            <div class="text-xs text-slate-400 mt-1">
+                {{ registros.first.fecha_registro|time:"H:i"|default:"" }}
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 md:col-span-2">
+            <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Alcance del Proyecto</div>
+            <div class="flex flex-wrap gap-3">
+                {% if empresa.tiene_sagrilaft %}
+                    <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span class="text-sm font-bold text-blue-700">SAGRILAFT Activo</span>
+                    </div>
+                {% endif %}
+                {% if empresa.tiene_ptee %}
+                    <div class="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-100 rounded-lg">
+                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                        <span class="text-sm font-bold text-purple-700">PTEE Activo</span>
+                    </div>
+                {% endif %}
+                {% if not empresa.tiene_sagrilaft and not empresa.tiene_ptee %}
+                    <span class="text-sm text-slate-400 italic">No hay servicios configurados.</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="font-bold text-slate-700 mb-4 border-b pb-2 flex items-center justify-between">
+                <span>Distribución por Tercero</span>
+                <i class="fas fa-chart-pie text-slate-300"></i>
+            </h3>
+            <div class="relative h-64 w-full">
+                <canvas id="chartTipos"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
+            <h3 class="font-bold text-slate-700 mb-4 border-b pb-2 flex items-center justify-between">
+                <span>Indicadores de Conocimiento (Riesgo LA/FT)</span>
+                <i class="fas fa-chart-bar text-slate-300"></i>
+            </h3>
+            
+            {% if empresa.tiene_sagrilaft %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="relative h-64 w-full">
+                    <p class="text-center text-xs font-bold text-slate-500 uppercase mb-2">¿Conocen el Sistema?</p>
+                    <canvas id="chartSagrilaftConoce"></canvas>
+                </div>
+                <div class="relative h-64 w-full">
+                    <p class="text-center text-xs font-bold text-slate-500 uppercase mb-2">Canales de Denuncia</p>
+                    <canvas id="chartSagrilaftDenuncia"></canvas>
+                </div>
+            </div>
+            {% else %}
+            <div class="flex items-center justify-center h-64 text-slate-400 italic bg-slate-50 rounded-lg">
+                El módulo SAGRILAFT no está activo para esta empresa.
+            </div>
+            {% endif %}
+        </div>
+
+        {% if empresa.tiene_ptee %}
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-3">
+            <h3 class="font-bold text-slate-700 mb-4 border-b pb-2">Indicadores PTEE (Ética Empresarial)</h3>
+            <div class="relative h-64 w-full md:w-1/2 mx-auto">
+                 <p class="text-center text-xs font-bold text-slate-500 uppercase mb-2">¿Conocen el programa PTEE?</p>
+                <canvas id="chartPteeConoce"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            
+            <div class="flex items-center gap-2">
+                <div class="bg-slate-200 p-2 rounded text-slate-600">
+                    <i class="fas fa-list"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm">Últimos Registros ({{ anio_seleccionado }})</h3>
+                    <p class="text-xs text-slate-500">Mostrando visualización rápida (máx 50)</p>
+                </div>
+            </div>
+            
+            <form method="GET" class="flex flex-wrap items-center gap-2 text-sm bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                <input type="hidden" name="vigencia" value="{{ anio_seleccionado }}">
+
+                <select name="tipo" class="p-2 border border-slate-300 rounded text-xs bg-slate-50 focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer" onchange="this.form.submit()">
+                    <option value="">Tipo: Todos</option>
+                    <option value="CLIENTE" {% if filtros.tipo == 'CLIENTE' %}selected{% endif %}>Cliente</option>
+                    <option value="PROVEEDOR" {% if filtros.tipo == 'PROVEEDOR' %}selected{% endif %}>Proveedor</option>
+                    <option value="EMPLEADO" {% if filtros.tipo == 'EMPLEADO' %}selected{% endif %}>Empleado</option>
+                </select>
+                
+                {% if filtros.tipo %}
+                    <a href="?vigencia={{ anio_seleccionado }}" class="text-red-500 hover:text-red-700 text-xs font-bold px-3 py-1 bg-red-50 rounded ml-2 transition-colors border border-red-100 hover:bg-red-50">
+                        <i class="fas fa-times mr-1"></i> Limpiar
+                    </a>
+                {% endif %}
+            </form>
+
+            <div class="flex gap-2">
+                <a href="{% url 'exportar_excel' empresa.id %}?{{ request.GET.urlencode }}" class="bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors flex items-center shadow-sm">
+                    <i class="fas fa-file-excel mr-2"></i> Excel
+                </a>
+                
+                <a href="{% url 'ver_todos_registros' empresa.id %}" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors flex items-center">
+                    Ver Todo <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-white text-slate-500 font-bold uppercase text-xs border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-4">Fecha</th>
+                        <th class="px-6 py-4">Tercero</th>
+                        <th class="px-6 py-4">Nombre / Razón Social</th>
+                        <th class="px-6 py-4">Cargo</th>
+                        <th class="px-6 py-4 text-center">Conocimiento Gral.</th>
+                        <th class="px-6 py-4 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for reg in registros %}
+                    <tr class="hover:bg-blue-50/50 transition-colors group">
+                        <td class="px-6 py-3 text-slate-500 font-mono text-xs whitespace-nowrap">
+                            {{ reg.fecha_registro|date:"d/m/Y" }} <span class="text-slate-400">{{ reg.fecha_registro|time:"H:i" }}</span>
+                        </td>
+                        <td class="px-6 py-3">
+                            <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border 
+                                {% if reg.tipo_tercero == 'CLIENTE' %}bg-green-50 text-green-700 border-green-200{% elif reg.tipo_tercero == 'PROVEEDOR' %}bg-orange-50 text-orange-700 border-orange-200{% elif reg.tipo_tercero == 'EMPLEADO' %}bg-blue-50 text-blue-700 border-blue-200{% else %}bg-gray-50 text-gray-700 border-gray-200{% endif %}">
+                                {{ reg.tipo_tercero }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">
+                            {{ reg.nombre_respondiente }}
+                        </td>
+                        <td class="px-6 py-3 text-slate-500 text-xs">
+                            {{ reg.cargo|truncatechars:20 }}
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            {% if empresa.tiene_sagrilaft %}
+                                {% if reg.respuestas_data.p5_sagrilaft_conoce == 'SI' %}
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600 border border-green-200" title="Conoce el sistema">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                {% else %}
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 border border-red-200 animate-pulse" title="Riesgo: No conoce o No recuerda">
+                                        <i class="fas fa-exclamation"></i>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-slate-300">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-right">
+                            <a href="{% url 'ver_detalle_respuesta' reg.id %}" class="inline-flex items-center gap-1 text-slate-500 hover:text-blue-600 font-bold text-xs border border-slate-200 hover:border-blue-300 px-3 py-1.5 rounded-lg bg-white transition-all shadow-sm hover:shadow">
+                                Ver Detalle
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400">
+                                <i class="far fa-folder-open text-3xl mb-2 opacity-50"></i>
+                                <span class="italic">No hay registros para el año {{ anio_seleccionado }}.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3 bg-slate-50 text-center border-t border-slate-200">
+            <a href="{% url 'ver_todos_registros' empresa.id %}" class="text-xs text-blue-600 hover:text-blue-800 hover:underline font-bold transition-colors">
+                Ver auditoría completa de registros
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Configuración Global de Fuentes para que se vea pro
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = '#64748b';
+    Chart.defaults.maintainAspectRatio = false; // CLAVE: Permite que el gráfico respete la altura del contenedor
+
+    // 1. GRÁFICO DE DONA (Tipos de Tercero)
+    const ctxTipos = document.getElementById('chartTipos');
+    if (ctxTipos) {
+        new Chart(ctxTipos, {
+            type: 'doughnut',
+            data: {
+                labels: {{ labels_tipos|safe }},
+                datasets: [{
+                    data: {{ data_tipos|safe }},
+                    backgroundColor: ['#3b82f6', '#f97316', '#10b981', '#8b5cf6', '#64748b'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 4
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, // CLAVE
+                plugins: {
+                    legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } }
+                },
+                layout: { padding: 10 }
+            }
+        });
+    }
+
+    // 2. GRÁFICOS SAGRILAFT (Solo si existen los canvas)
+    {% if empresa.tiene_sagrilaft %}
+        // A. Conocimiento General (Pie)
+        const ctxSag1 = document.getElementById('chartSagrilaftConoce');
+        if (ctxSag1) {
+            new Chart(ctxSag1, {
+                type: 'pie',
+                data: {
+                    labels: ['Sí Conocen', 'No Conocen/No Recuerdan'],
+                    datasets: [{
+                        data: {{ stats_sagrilaft.conocimiento|safe }},
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        // B. Canales de Denuncia (Bar)
+        const ctxSag2 = document.getElementById('chartSagrilaftDenuncia');
+        if (ctxSag2) {
+            new Chart(ctxSag2, {
+                type: 'bar',
+                data: {
+                    labels: ['Saben Denunciar', 'No Saben Denunciar'],
+                    datasets: [{
+                        label: 'Usuarios',
+                        data: {{ stats_sagrilaft.denuncia|safe }},
+                        backgroundColor: ['#3b82f6', '#f59e0b'],
+                        borderRadius: 6,
+                        barThickness: 40
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+    {% endif %}
+
+    // 3. GRÁFICO PTEE (Si aplica)
+    {% if empresa.tiene_ptee %}
+        const ctxPtee = document.getElementById('chartPteeConoce');
+        if (ctxPtee) {
+            new Chart(ctxPtee, {
+                type: 'pie',
+                data: {
+                    labels: ['Sí Conocen PTEE', 'No Conocen'],
+                    datasets: [{
+                        data: {{ stats_ptee.conocimiento|safe }},
+                        backgroundColor: ['#8b5cf6', '#cbd5e1'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+    {% endif %}
+</script>
+{% endblock %}

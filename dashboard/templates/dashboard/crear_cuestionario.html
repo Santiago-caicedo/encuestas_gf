@@ -1,0 +1,97 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white p-8 rounded shadow">
+    <h2 class="text-2xl font-bold mb-4">Crear Formulario para {{ empresa.nombre }}</h2>
+
+    <form method="POST" id="mainForm">
+        {% csrf_token %}
+        
+        <div class="mb-4">
+            <label class="block text-gray-700">Título del Formulario</label>
+            {{ form.titulo }}
+        </div>
+        <div class="mb-4">
+            <label class="block text-gray-700">Descripción</label>
+            {{ form.descripcion }}
+        </div>
+
+        <div class="border-t border-b py-6 my-6 bg-gray-50 p-4 rounded">
+            <h3 class="font-bold text-lg mb-4">Diseñador de Preguntas</h3>
+            
+            <div id="preguntas-container" class="space-y-4">
+                </div>
+
+            <button type="button" onclick="agregarPregunta()" class="mt-4 bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">
+                + Agregar Pregunta
+            </button>
+        </div>
+
+        {{ form.esquema_preguntas }}
+
+        <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded font-bold hover:bg-slate-800">
+            Guardar Cuestionario
+        </button>
+    </form>
+</div>
+
+<script>
+    let preguntas = [];
+
+    function agregarPregunta() {
+        const container = document.getElementById('preguntas-container');
+        const idTemp = Date.now(); // ID temporal para el DOM
+
+        const html = `
+            <div class="bg-white p-4 border rounded shadow-sm flex gap-4 items-end" id="row-${idTemp}">
+                <div class="flex-1">
+                    <label class="text-xs font-bold text-gray-500">Etiqueta (Pregunta)</label>
+                    <input type="text" class="w-full border p-1 rounded pregunta-label" placeholder="Ej: Suba su RUT">
+                </div>
+                <div class="w-1/4">
+                    <label class="text-xs font-bold text-gray-500">Tipo</label>
+                    <select class="w-full border p-1 rounded pregunta-tipo">
+                        <option value="text">Texto</option>
+                        <option value="number">Número</option>
+                        <option value="file">Archivo</option>
+                        <option value="date">Fecha</option>
+                    </select>
+                </div>
+                <button type="button" onclick="eliminarPregunta('row-${idTemp}')" class="text-red-500 hover:text-red-700 pb-2">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    }
+
+    function eliminarPregunta(id) {
+        document.getElementById(id).remove();
+    }
+
+    // Antes de enviar el form, recopilamos todo el HTML y lo convertimos a JSON
+    document.getElementById('mainForm').addEventListener('submit', function(e) {
+        const filas = document.querySelectorAll('#preguntas-container > div');
+        let arrayPreguntas = [];
+
+        filas.forEach((fila, index) => {
+            let label = fila.querySelector('.pregunta-label').value;
+            let tipo = fila.querySelector('.pregunta-tipo').value;
+            
+            // Creamos un ID automático basado en el label (ej: "Nombre Completo" -> "nombre_completo")
+            let idCampo = label.toLowerCase().replace(/ /g, '_').replace(/[^\w]/g, '');
+
+            if(label) {
+                arrayPreguntas.push({
+                    "id": idCampo + '_' + index, // Unicidad
+                    "label": label,
+                    "tipo": tipo
+                });
+            }
+        });
+
+        // Guardamos el JSON string en el input oculto de Django
+        document.querySelector('[name="esquema_preguntas"]').value = JSON.stringify(arrayPreguntas);
+    });
+</script>
+{% endblock %}

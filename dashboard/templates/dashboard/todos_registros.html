@@ -1,0 +1,164 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Auditoría de Registros</h1>
+            <p class="text-sm text-slate-500">Historial completo para: <span class="font-bold text-slate-700">{{ empresa.nombre }}</span></p>
+        </div>
+        <a href="{% url 'ver_metricas' empresa.id %}" class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-600 transition-colors inline-flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i> Volver al Tablero
+        </a>
+    </div>
+
+    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <form method="GET" class="flex flex-col lg:flex-row items-end gap-4">
+            
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo Tercero</label>
+                    <select name="tipo" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-100 outline-none">
+                        <option value="">Todos</option>
+                        <option value="CLIENTE" {% if filtros.tipo == 'CLIENTE' %}selected{% endif %}>Cliente</option>
+                        <option value="PROVEEDOR" {% if filtros.tipo == 'PROVEEDOR' %}selected{% endif %}>Proveedor</option>
+                        <option value="EMPLEADO" {% if filtros.tipo == 'EMPLEADO' %}selected{% endif %}>Empleado</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Desde</label>
+                    <input type="date" name="fecha_inicio" value="{{ filtros.inicio }}" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-100 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Hasta</label>
+                    <input type="date" name="fecha_fin" value="{{ filtros.fin }}" class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-100 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Buscar</label>
+                    <input type="text" name="nombre" value="{{ filtros.nombre|default:'' }}" placeholder="Nombre o Razón Social..." class="w-full p-2 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-100 outline-none">
+                </div>
+            </div>
+
+            <div class="flex gap-2 w-full lg:w-auto mt-2 lg:mt-0">
+                <button type="submit" class="bg-slate-900 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 transition-colors shadow-sm flex items-center justify-center flex-1 lg:flex-none">
+                    <i class="fas fa-filter mr-2"></i> Filtrar
+                </button>
+                
+                <a href="{% url 'exportar_excel' empresa.id %}?{{ request.GET.urlencode }}" class="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center flex-1 lg:flex-none">
+                    <i class="fas fa-file-excel mr-2"></i> Exportar
+                </a>
+
+                {% if filtros.tipo or filtros.inicio or filtros.fin or filtros.nombre %}
+                    <a href="." class="bg-gray-100 text-gray-500 px-3 py-2 rounded-lg text-sm hover:bg-gray-200 hover:text-red-500 transition-colors border border-gray-200" title="Limpiar Filtros">
+                        <i class="fas fa-times"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+            <span class="font-bold text-slate-700 text-sm">
+                <i class="fas fa-list-ul mr-2 text-slate-400"></i>
+                Resultados encontrados: {{ page_obj.paginator.count }}
+            </span>
+            <span class="text-xs text-slate-500 font-mono bg-white px-2 py-1 rounded border border-slate-200">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-white text-slate-500 font-bold uppercase text-xs border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-4">Fecha</th>
+                        <th class="px-6 py-4">Tercero</th>
+                        <th class="px-6 py-4">Nombre / Razón Social</th>
+                        <th class="px-6 py-4">Área / Cargo</th>
+                        <th class="px-6 py-4 text-center">Estado</th>
+                        <th class="px-6 py-4 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for reg in page_obj %}
+                    <tr class="hover:bg-blue-50/50 transition-colors group">
+                        <td class="px-6 py-3 text-slate-500 font-mono text-xs whitespace-nowrap">
+                            {{ reg.fecha_registro|date:"d/m/Y" }} <span class="text-slate-400">{{ reg.fecha_registro|time:"H:i" }}</span>
+                        </td>
+                        <td class="px-6 py-3">
+                            <span class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase border 
+                                {% if reg.tipo_tercero == 'CLIENTE' %}bg-green-50 text-green-700 border-green-200{% elif reg.tipo_tercero == 'PROVEEDOR' %}bg-orange-50 text-orange-700 border-orange-200{% elif reg.tipo_tercero == 'EMPLEADO' %}bg-blue-50 text-blue-700 border-blue-200{% else %}bg-gray-50 text-gray-700 border-gray-200{% endif %}">
+                                {{ reg.tipo_tercero }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">
+                            {{ reg.nombre_respondiente }}
+                        </td>
+                        <td class="px-6 py-3 text-slate-500 text-xs">
+                            <div class="font-medium text-slate-700">{{ reg.area }}</div>
+                            <div class="text-slate-400">{{ reg.cargo }}</div>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            {% if empresa.tiene_sagrilaft %}
+                                {% if reg.respuestas_data.p5_sagrilaft_conoce == 'SI' %}
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600 border border-green-200" title="Conoce el sistema">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                {% else %}
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 border border-red-200 animate-pulse" title="Riesgo: No conoce o No recuerda">
+                                        <i class="fas fa-exclamation"></i>
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-slate-300">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-right">
+                            <a href="{% url 'ver_detalle_respuesta' reg.id %}" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold text-xs border border-blue-100 hover:border-blue-300 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-white transition-all shadow-sm">
+                                Ver Detalle
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center">
+                            <div class="flex flex-col items-center justify-center text-slate-400">
+                                <i class="far fa-folder-open text-3xl mb-2 opacity-50"></i>
+                                <span class="italic">No se encontraron registros con los filtros seleccionados.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="p-4 border-t border-slate-100 flex justify-center gap-2 bg-slate-50">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}&tipo={{ filtros.tipo }}&fecha_inicio={{ filtros.inicio }}&fecha_fin={{ filtros.fin }}&nombre={{ filtros.nombre }}" class="px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 text-sm font-medium transition-colors">
+                    <i class="fas fa-chevron-left mr-1"></i> Anterior
+                </a>
+            {% endif %}
+            
+            <span class="px-4 py-1.5 bg-slate-200 rounded-lg text-sm font-bold text-slate-700 border border-slate-300">
+                {{ page_obj.number }}
+            </span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}&tipo={{ filtros.tipo }}&fecha_inicio={{ filtros.inicio }}&fecha_fin={{ filtros.fin }}&nombre={{ filtros.nombre }}" class="px-3 py-1.5 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 text-sm font-medium transition-colors">
+                    Siguiente <i class="fas fa-chevron-right ml-1"></i>
+                </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

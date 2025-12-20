@@ -1,0 +1,93 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800">Torre de Control</h1>
+        <p class="text-sm text-slate-500">Resumen de actividad global del sistema.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-slate-900 text-white p-6 rounded-xl shadow-lg relative overflow-hidden group">
+            <div class="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2 group-hover:scale-110 transition-transform">
+                <i class="fas fa-building text-9xl"></i>
+            </div>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Clientes Gestionados</p>
+            <h3 class="text-4xl font-black">{{ total_empresas }}</h3>
+            <a href="{% url 'lista_empresas' %}" class="inline-block mt-4 text-xs font-bold text-blue-400 hover:text-white transition-colors">
+                Ver Directorio <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div class="flex justify-between items-start mb-4">
+                <div class="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                    <i class="fas fa-poll-h"></i>
+                </div>
+                <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+12% hoy</span>
+            </div>
+            <h3 class="text-3xl font-bold text-slate-800">{{ total_registros }}</h3>
+            <p class="text-xs text-slate-500 font-medium mt-1">Encuestas respondidas (Total Histórico)</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-6 rounded-xl shadow-lg flex flex-col justify-center items-center text-center">
+            <h3 class="font-bold text-lg mb-2">¿Nuevo Cliente?</h3>
+            <p class="text-blue-100 text-xs mb-4">Configura un entorno seguro en menos de 2 minutos.</p>
+            <a href="{% url 'crear_empresa' %}" class="bg-white text-blue-700 px-6 py-2 rounded-lg font-bold text-sm hover:bg-blue-50 transition-colors shadow-md w-full">
+                <i class="fas fa-plus mr-2"></i> Registrar Empresa
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+            <h3 class="font-bold text-slate-800">Actividad en Tiempo Real</h3>
+            <span class="text-xs text-slate-400"><i class="fas fa-sync-alt mr-1"></i> Actualizado hace instantes</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 text-slate-500 font-bold uppercase text-xs">
+                    <tr>
+                        <th class="px-6 py-3">Hora</th>
+                        <th class="px-6 py-3">Empresa Cliente</th>
+                        <th class="px-6 py-3">Tercero</th>
+                        <th class="px-6 py-3">Respondido por</th>
+                        <th class="px-6 py-3 text-right">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for reg in ultimos_registros %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-3 font-mono text-slate-500 text-xs">
+                            {{ reg.fecha_registro|date:"d/m H:i" }}
+                        </td>
+                        <td class="px-6 py-3 font-bold text-slate-700">
+                            {{ reg.empresa.nombre }}
+                        </td>
+                        <td class="px-6 py-3">
+                            <span class="px-2 py-1 rounded text-[10px] font-bold uppercase border bg-white border-slate-200 text-slate-600">
+                                {{ reg.tipo_tercero }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-slate-600">
+                            {{ reg.nombre_respondiente|truncatechars:25 }}
+                        </td>
+                        <td class="px-6 py-3 text-right">
+                            <a href="{% url 'ver_detalle_respuesta' reg.id %}" class="text-blue-600 hover:underline text-xs font-bold">Ver <i class="fas fa-chevron-right text-[10px]"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">
+                            No hay actividad reciente en el sistema.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

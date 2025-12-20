@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión | GFR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+        
+        <div class="bg-slate-900 p-8 text-center">
+            <img src="https://vadomdata.com/wp-content/uploads/2025/09/gf-1.png" alt="GF Riesgos" class="h-16 mx-auto object-contain mb-4">
+            <h2 class="text-white text-xl font-bold">Bienvenido de nuevo</h2>
+            <p class="text-slate-400 text-sm mt-1">Ingresa tus credenciales para acceder al panel.</p>
+        </div>
+
+        <div class="p-8">
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-circle text-red-500"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-red-700 font-bold">Error de acceso</p>
+                                <p class="text-xs text-red-600">Usuario o contraseña incorrectos.</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label for="id_username" class="block text-sm font-medium text-slate-700 mb-1">Usuario</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="far fa-user text-slate-400"></i>
+                        </div>
+                        <input type="text" name="username" autofocus required id="id_username" 
+                               class="w-full pl-10 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                               placeholder="Tu usuario">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_password" class="block text-sm font-medium text-slate-700 mb-1">Contraseña</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-lock text-slate-400"></i>
+                        </div>
+                        <input type="password" name="password" required id="id_password" 
+                               class="w-full pl-10 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" 
+                               placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 duration-200">
+                    Iniciar Sesión
+                </button>
+            </form>
+        </div>
+        
+        <div class="bg-slate-50 p-4 text-center border-t border-slate-100">
+            <p class="text-xs text-slate-400">
+                &copy; 2025 Gestión Financiera de Riesgos. <br>Sistema Seguro.
+            </p>
+        </div>
+    </div>
+
+</body>
+</html>

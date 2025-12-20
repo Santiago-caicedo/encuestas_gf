@@ -1,0 +1,224 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">
+                {% if editar %}
+                    Editar Empresa: {{ empresa.nombre }}
+                {% else %}
+                    Registrar Nueva Empresa
+                {% endif %}
+            </h1>
+            <p class="text-sm text-slate-500 mt-1">
+                {% if editar %}
+                    Modifica los servicios contratados, datos de contacto o identidad visual.
+                {% else %}
+                    Configura el entorno exclusivo para un nuevo cliente.
+                {% endif %}
+            </p>
+        </div>
+        <a href="{% url 'lista_empresas' %}" class="text-slate-500 hover:text-slate-700 font-medium text-sm flex items-center gap-2 transition-colors">
+            <i class="fas fa-arrow-left"></i> Cancelar y volver
+        </a>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        
+        <form method="POST" enctype="multipart/form-data" class="p-0">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                
+                <div class="p-8 md:col-span-2 space-y-8">
+                    
+                    <div>
+                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
+                            <i class="far fa-building text-slate-400"></i> Información Corporativa
+                        </h3>
+
+                        <div class="grid grid-cols-1 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Nombre Legal de la Empresa</label>
+                                {{ form.nombre }} 
+                                <p class="text-xs text-slate-400 mt-1">Nombre oficial que aparecerá en los reportes.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Firma Consultora (Gestor)</label>
+                                {{ form.aliado }}
+                                <p class="text-xs text-slate-400 mt-1">Define qué logo de consultoría aparecerá en el formulario (GFR o Legal Shield).</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Identificador de URL (Slug)</label>
+                                    <div class="flex items-center">
+                                        <span class="bg-slate-50 border border-r-0 border-gray-300 text-slate-500 px-3 py-2 rounded-l text-sm border-gray-300">/encuesta/</span>
+                                        {{ form.slug }}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-1">Correo de Soporte</label>
+                                    {{ form.email_soporte }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <i class="fas fa-file-contract text-slate-400"></i> Servicios Contratados
+                        </h3>
+                        <p class="text-sm text-slate-500 mb-4">Selecciona qué módulos de encuesta podrá ver este cliente.</p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label class="relative flex items-start p-4 cursor-pointer bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all">
+                                <div class="flex items-center h-5">
+                                    {{ form.tiene_sagrilaft }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-bold text-slate-800 block">Módulo SAGRILAFT</span>
+                                    <span class="text-slate-500 text-xs">Gestión de Lavado de Activos y Financiación del Terrorismo.</span>
+                                </div>
+                            </label>
+
+                            <label class="relative flex items-start p-4 cursor-pointer bg-white border border-slate-200 rounded-lg hover:border-purple-400 hover:shadow-sm transition-all">
+                                <div class="flex items-center h-5">
+                                    {{ form.tiene_ptee }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-bold text-slate-800 block">Módulo PTEE</span>
+                                    <span class="text-slate-500 text-xs">Programa de Transparencia y Ética Empresarial.</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="p-8 bg-slate-50/50 space-y-6">
+                    <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
+                        <i class="fas fa-paint-brush text-slate-400"></i> Personalización
+                    </h3>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Color Corporativo</label>
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-full shadow-sm border border-slate-200 overflow-hidden relative cursor-pointer group hover:scale-105 transition-transform">
+                                {{ form.color_primario }}
+                                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <i class="fas fa-eye-dropper text-white text-xs drop-shadow-md"></i>
+                                </div>
+                            </div>
+                            <div class="flex flex-col">
+                                <span id="hex-display" class="text-sm font-mono text-slate-800 font-bold">#000000</span>
+                                <span class="text-[10px] text-slate-400">Color de botones y bordes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Logotipo</label>
+                        
+                        <div class="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg p-6 hover:bg-white hover:border-blue-400 transition-colors text-center cursor-pointer relative bg-white" id="drop-zone">
+                            
+                            <input type="file" name="logo" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="previewImage(event)">
+                            
+                            <div id="preview-placeholder" class="{% if empresa.logo %}hidden{% endif %}">
+                                <i class="fas fa-cloud-upload-alt text-3xl text-slate-300 mb-2"></i>
+                                <p class="text-xs text-slate-500 font-medium">Clic para subir imagen</p>
+                                <p class="text-[10px] text-slate-400">PNG, JPG (Max. 2MB)</p>
+                            </div>
+
+                            <img id="logo-preview" 
+                                 src="{% if empresa.logo %}{{ empresa.logo.url }}{% endif %}" 
+                                 class="{% if not empresa.logo %}hidden{% endif %} max-h-24 object-contain mx-auto z-0" />
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-slate-200">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-3">Vista Previa Botón</label>
+                        <button type="button" id="btn-preview" class="w-full py-3 px-4 rounded-xl shadow-md text-white font-bold text-sm transition-all transform hover:scale-[1.02]">
+                            Enviar Encuesta
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="bg-gray-50 px-8 py-4 border-t border-slate-200 flex items-center justify-end gap-3">
+                <a href="{% url 'lista_empresas' %}" class="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-6 py-2 text-sm font-bold text-white bg-slate-900 rounded hover:bg-slate-800 shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                    <i class="fas fa-check"></i> 
+                    {% if editar %} Guardar Cambios {% else %} Crear Empresa {% endif %}
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+    // 1. Slugify Automático
+    {% if not editar %}
+    const nombreInput = document.querySelector('input[name="nombre"]');
+    const slugInput = document.querySelector('input[name="slug"]');
+
+    nombreInput.addEventListener('input', function() {
+        const val = this.value.toLowerCase();
+        const slug = val.replace(/ /g, '-').replace(/[^\w-]+/g, '');
+        slugInput.value = slug;
+    });
+    {% endif %}
+
+    // 2. Color Preview
+    const colorInput = document.querySelector('input[name="color_primario"]');
+    const hexDisplay = document.getElementById('hex-display');
+    const btnPreview = document.getElementById('btn-preview');
+
+    function updateColor(color) {
+        hexDisplay.innerText = color;
+        btnPreview.style.backgroundColor = color;
+    }
+
+    if(colorInput.value) {
+        updateColor(colorInput.value);
+    }
+
+    colorInput.addEventListener('input', (e) => updateColor(e.target.value));
+
+    // 3. Image Preview
+    function previewImage(event) {
+        const input = event.target;
+        const placeholder = document.getElementById('preview-placeholder');
+        const preview = document.getElementById('logo-preview');
+
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
+
+<style>
+    /* Ajuste para que el input color llene el círculo */
+    input[type="color"] {
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        position: absolute;
+        top: 0; left: 0;
+    }
+</style>
+{% endblock %}
