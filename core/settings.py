@@ -29,6 +29,10 @@ DEBUG = os.environ.get('DEBUG') == 'True'
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default=[], cast=lambda v: [s.strip() for s in v.split(',')])
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://encuestas.vadomsystems.com',
+]
+
 
 # Application definition
 
