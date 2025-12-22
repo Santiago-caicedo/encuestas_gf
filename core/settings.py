@@ -47,7 +47,6 @@ INSTALLED_APPS = [
     'formularios',
     'dashboard',
 
-    'storages',
 ]
 
 MIDDLEWARE = [
