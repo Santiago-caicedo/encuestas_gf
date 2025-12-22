@@ -126,7 +126,7 @@ USE_TZ = True
 
 
 # ==========================================
-# GESTIÓN DE ARCHIVOS (Estilo Geolab)
+# GESTIÓN DE ARCHIVOS (Modo Geolab - ACLs Públicas)
 # ==========================================
 
 STATIC_URL = '/static/'
@@ -135,70 +135,56 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Lógica Inteligente: ¿Estoy en Producción?
-# Usamos el mismo truco del DEBUG que validamos antes
+# Leemos DEBUG. Si no está, asumimos False (Producción)
 DEBUG = os.environ.get('DEBUG') == 'True'
 
 if not DEBUG:
-    # ---------------------------------------------------------
-    # CONFIGURACIÓN AWS S3 (Estilo "Compas" - URLs Firmadas)
-    # ---------------------------------------------------------
+    # --- PRODUCCIÓN (AWS S3) ---
     INSTALLED_APPS += ['storages']
 
     AWS_STORAGE_BUCKET_NAME = 'vadomdata'
     AWS_S3_REGION_NAME = 'us-east-1'
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     
-    # 1. SEGURIDAD: Evitamos el error "AccessControlListNotSupported"
-    # Al poner esto en None, Django no intenta cambiar permisos en el bucket.
-    AWS_DEFAULT_ACL = None 
+    # === LA CLAVE PARA QUE FUNCIONE SIN TOCAR AWS ===
+    # 1. Decirle que USE ACLs públicas
+    AWS_DEFAULT_ACL = 'public-read'
     
-    # 2. AUTENTICACIÓN: Esto es lo que hace que funcione sin tocar el bucket.
-    # True = Django firma las URLs (las hace seguras y largas).
-    # False = Django genera URLs limpias (que fallan si el bucket es privado).
-    # En Compas, esto estaba en True (por defecto).
-    AWS_QUERYSTRING_AUTH = True 
-    
-    # 3. CACHÉ y PARÁMETROS
+    # 2. Forzar parámetros en cada objeto subido
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
+        'ACL': 'public-read' 
     }
-    AWS_S3_FILE_OVERWRITE = False
-
-    # 4. PREFIJO DEL CLIENTE (Adaptado a este proyecto)
-    # Puedes usar la variable de entorno o dejarlo fijo si prefieres.
-    # Aquí lo dejo fijo 'encuestas_gf' como lo tenías en tu ejemplo.
-    S3_PREFIX = 'encuestas_gf'
-
-    # 5. CLASES DE ALMACENAMIENTO (La lógica de carpetas)
-    from storages.backends.s3boto3 import S3Boto3Storage
-
-    class StaticStorage(S3Boto3Storage):
-        location = f'{S3_PREFIX}/static'
-        default_acl = None # Aseguramos que no intente poner ACLs
-
-    class MediaStorage(S3Boto3Storage):
-        location = f'{S3_PREFIX}/media'
-        file_overwrite = False
-        default_acl = None
-
-    # 6. DEFINICIÓN DE URLs
-    # Nota: Al usar URLs firmadas (Auth=True), AWS_S3_CUSTOM_DOMAIN a veces
-    # choca si no se configura con cuidado. Para firma simple, solemos quitar el custom domain
-    # de la URL estática directa y dejar que boto3 construya la URL completa.
-    # Pero intentemos mantener la estructura de Compas:
     
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/static/'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/media/'
+    # 3. Quitar la firma de seguridad de las URLs
+    AWS_QUERYSTRING_AUTH = False
 
-    # 7. ASIGNACIÓN FINAL (Django 4.2+)
+    # 4. URLs
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/static/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/media/'
+    
+    # 5. Motores de Almacenamiento
     STORAGES = {
         "default": {
-            "BACKEND": "core.settings.MediaStorage", # <--- Ajusta 'core' si tu proyecto se llama diferente
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "location": "encuestas_gf/media",
+                "file_overwrite": False,
+            },
         },
         "staticfiles": {
-            "BACKEND": "core.settings.StaticStorage", # <--- Ajusta 'core' si tu proyecto se llama diferente
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "location": "encuestas_gf/static",
+            },
         },
+    }
+
+else:
+    # --- LOCAL (Tu PC) ---
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
 
 # REDIRECCIONES DE LOGIN
