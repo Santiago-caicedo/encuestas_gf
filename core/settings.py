@@ -141,7 +141,7 @@ DEBUG = os.environ.get('DEBUG') == 'True'
 
 if not DEBUG:
     # ---------------------------------------------------------
-    # CONFIGURACIÓN AWS S3 (Producción)
+    # CONFIGURACIÓN AWS S3 (Estilo "Compas" - URLs Firmadas)
     # ---------------------------------------------------------
     INSTALLED_APPS += ['storages']
 
@@ -149,50 +149,55 @@ if not DEBUG:
     AWS_S3_REGION_NAME = 'us-east-1'
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     
-    # IMPORTANTE: Esto sube los archivos "Privados" por defecto.
-    # Por eso NECESITAS la Bucket Policy en la consola de AWS.
-    AWS_DEFAULT_ACL = 'public-read'
+    # 1. SEGURIDAD: Evitamos el error "AccessControlListNotSupported"
+    # Al poner esto en None, Django no intenta cambiar permisos en el bucket.
+    AWS_DEFAULT_ACL = None 
     
-    # AGREGAR ESTAS DOS LÍNEAS:
+    # 2. AUTENTICACIÓN: Esto es lo que hace que funcione sin tocar el bucket.
+    # True = Django firma las URLs (las hace seguras y largas).
+    # False = Django genera URLs limpias (que fallan si el bucket es privado).
+    # En Compas, esto estaba en True (por defecto).
+    AWS_QUERYSTRING_AUTH = True 
+    
+    # 3. CACHÉ y PARÁMETROS
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
-        'ACL': 'public-read'  # <--- Forzar ACL explícitamente en cada objeto
     }
-    
-    # Configuración de S3 para que NO firme las URLs (Clave para que sean públicas)
-    AWS_QUERYSTRING_AUTH = False 
-    
-    # 1. URLs apuntando a la carpeta del cliente
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/static/'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/media/'
-    
-    # 2. Definición de Storages (Sin archivo storages.py)
-    STORAGES = {
-        "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-            "OPTIONS": {
-                "location": "encuestas_gf/media",  # <--- Carpeta específica
-                "file_overwrite": False,
-            },
-        },
-        "staticfiles": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-            "OPTIONS": {
-                "location": "encuestas_gf/static", # <--- Carpeta específica
-            },
-        },
-    }
+    AWS_S3_FILE_OVERWRITE = False
 
-else:
-    # ---------------------------------------------------------
-    # CONFIGURACIÓN LOCAL
-    # ---------------------------------------------------------
+    # 4. PREFIJO DEL CLIENTE (Adaptado a este proyecto)
+    # Puedes usar la variable de entorno o dejarlo fijo si prefieres.
+    # Aquí lo dejo fijo 'encuestas_gf' como lo tenías en tu ejemplo.
+    S3_PREFIX = 'encuestas_gf'
+
+    # 5. CLASES DE ALMACENAMIENTO (La lógica de carpetas)
+    from storages.backends.s3boto3 import S3Boto3Storage
+
+    class StaticStorage(S3Boto3Storage):
+        location = f'{S3_PREFIX}/static'
+        default_acl = None # Aseguramos que no intente poner ACLs
+
+    class MediaStorage(S3Boto3Storage):
+        location = f'{S3_PREFIX}/media'
+        file_overwrite = False
+        default_acl = None
+
+    # 6. DEFINICIÓN DE URLs
+    # Nota: Al usar URLs firmadas (Auth=True), AWS_S3_CUSTOM_DOMAIN a veces
+    # choca si no se configura con cuidado. Para firma simple, solemos quitar el custom domain
+    # de la URL estática directa y dejar que boto3 construya la URL completa.
+    # Pero intentemos mantener la estructura de Compas:
+    
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/static/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/media/'
+
+    # 7. ASIGNACIÓN FINAL (Django 4.2+)
     STORAGES = {
         "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "BACKEND": "core.settings.MediaStorage", # <--- Ajusta 'core' si tu proyecto se llama diferente
         },
         "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            "BACKEND": "core.settings.StaticStorage", # <--- Ajusta 'core' si tu proyecto se llama diferente
         },
     }
 
