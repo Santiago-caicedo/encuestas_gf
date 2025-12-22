@@ -151,7 +151,7 @@ if not DEBUG:
     
     # IMPORTANTE: Esto sube los archivos "Privados" por defecto.
     # Por eso NECESITAS la Bucket Policy en la consola de AWS.
-    AWS_DEFAULT_ACL = None 
+    AWS_DEFAULT_ACL = 'public-read' 
     
     # 1. URLs apuntando a la carpeta del cliente
     STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/static/'
