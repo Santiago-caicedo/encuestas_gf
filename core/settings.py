@@ -136,7 +136,6 @@ if not DEBUG:
     # ---------------------------------------------------------
     
     # Librerías de almacenamiento
-    INSTALLED_APPS += ['storages']
 
     # Configuración del Bucket
     AWS_STORAGE_BUCKET_NAME = 'vadomdata'
