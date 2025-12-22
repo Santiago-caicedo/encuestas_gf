@@ -126,27 +126,36 @@ USE_TZ = True
 
 
 # ==========================================
-# GESTIÓN DE ARCHIVOS (PRODUCCIÓN S3)
+# GESTIÓN DE ARCHIVOS (GLOBAL Y PRODUCCIÓN)
 # ==========================================
 
-# Lógica Inteligente: ¿Estoy en Producción?
-# Usamos la variable de entorno DEBUG
+# 1. ¿Dónde están mis archivos locales? (¡LA LÍNEA QUE FALTABA!)
+# Esto le dice a Django: "Busca también en la carpeta 'static' al lado de manage.py"
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+# 2. Definiciones Base (Django las necesita siempre)
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# 3. Lógica de Almacenamiento (S3 vs Local)
 if not DEBUG:
     # ---------------------------------------------------------
-    # CONFIGURACIÓN AWS S3 (Modo Privado Estricto)
+    # CONFIGURACIÓN AWS S3 (Producción - Privado con Firmas)
     # ---------------------------------------------------------
     INSTALLED_APPS += ['storages']
 
     AWS_STORAGE_BUCKET_NAME = 'vadomdata'
     AWS_S3_REGION_NAME = 'us-east-1'
     
-    # [CAMBIO 1] ¡IMPORTANTE! Comentamos esto.
-    # Si esta línea está activa, Django deja de firmar las URLs.
-    # AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    # IMPORTANTE: Sin Custom Domain para que fuerce la firma completa
+    # AWS_S3_CUSTOM_DOMAIN = ... (Comentado)
     
     # --- SEGURIDAD ---
-    AWS_DEFAULT_ACL = None 
-    AWS_QUERYSTRING_AUTH = True  # Firmamos las URLs
+    AWS_DEFAULT_ACL = None  # Evita error 500 (Bucket Owner Enforced)
+    AWS_QUERYSTRING_AUTH = True  # ¡CRÍTICO! Firma las URLs para ver archivos privados
     
     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
     AWS_S3_FILE_OVERWRITE = False
@@ -164,17 +173,25 @@ if not DEBUG:
         file_overwrite = False
         default_acl = None
 
-    # [CAMBIO 2] Definición de URLs
-    # Al quitar el Custom Domain, necesitamos que Django no anteponga nada
-    # y deje que la librería 'boto3' construya la URL completa (firmada).
-    # Ponemos '/static/' solo para cumplir el requisito de Django, pero
-    # el Storage Backend lo sobrescribirá con la URL de S3 real.
+    # URLs Base (Boto3 se encargará de rellenar el dominio y la firma)
     STATIC_URL = f'/static/'
     MEDIA_URL = f'/media/'
 
     STORAGES = {
         "default": {"BACKEND": "core.settings.MediaStorage"},
         "staticfiles": {"BACKEND": "core.settings.StaticStorage"},
+    }
+
+else:
+    # ---------------------------------------------------------
+    # CONFIGURACIÓN LOCAL (Desarrollo)
+    # ---------------------------------------------------------
+    STATIC_URL = '/static/'
+    MEDIA_URL = '/media/'
+    
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
     }
 
 # REDIRECCIONES DE LOGIN
