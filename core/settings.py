@@ -126,65 +126,93 @@ USE_TZ = True
 
 
 # ==========================================
-# GESTIÓN DE ARCHIVOS (Modo Geolab - ACLs Públicas)
+# GESTIÓN DE ARCHIVOS (PRODUCCIÓN S3)
 # ==========================================
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-# Leemos DEBUG. Si no está, asumimos False (Producción)
-DEBUG = os.environ.get('DEBUG') == 'True'
-
+# Lógica Inteligente: ¿Estoy en Producción?
+# Usamos la variable de entorno DEBUG
 if not DEBUG:
-    # --- PRODUCCIÓN (AWS S3) ---
+    # ---------------------------------------------------------
+    # 1. CONFIGURACIÓN AWS S3
+    # ---------------------------------------------------------
     INSTALLED_APPS += ['storages']
 
     AWS_STORAGE_BUCKET_NAME = 'vadomdata'
     AWS_S3_REGION_NAME = 'us-east-1'
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     
-    # === LA CLAVE PARA QUE FUNCIONE SIN TOCAR AWS ===
-    # 1. Decirle que USE ACLs públicas
-    AWS_DEFAULT_ACL = 'public-read'
+    # --- CRÍTICO: SEGURIDAD Y PERMISOS ---
+    # 1. Evitamos el error 500: No intentamos poner ACLs (el bucket no las permite)
+    AWS_DEFAULT_ACL = None 
     
-    # 2. Forzar parámetros en cada objeto subido
+    # 2. Evitamos el AccessDenied: Firmamos las URLs para poder ver archivos privados
+    AWS_QUERYSTRING_AUTH = True 
+    
+    # 3. Caché (Opcional, para rendimiento)
     AWS_S3_OBJECT_PARAMETERS = {
         'CacheControl': 'max-age=86400',
-        'ACL': 'public-read' 
     }
-    
-    # 3. Quitar la firma de seguridad de las URLs
-    AWS_QUERYSTRING_AUTH = False
+    AWS_S3_FILE_OVERWRITE = False
 
-    # 4. URLs
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/static/'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/media/'
+    # ---------------------------------------------------------
+    # 2. DEFINICIÓN DE CARPETAS (Prefijo)
+    # ---------------------------------------------------------
+    # Aquí defines la carpeta raíz para este proyecto específico
+    S3_PREFIX = 'encuestas_gf'
+
+    # ---------------------------------------------------------
+    # 3. CLASES DE ALMACENAMIENTO PERSONALIZADAS
+    # ---------------------------------------------------------
+    from storages.backends.s3boto3 import S3Boto3Storage
+
+    class StaticStorage(S3Boto3Storage):
+        location = f'{S3_PREFIX}/static'
+        default_acl = None # Aseguramos que no intente poner ACLs
+
+    class MediaStorage(S3Boto3Storage):
+        location = f'{S3_PREFIX}/media'
+        file_overwrite = False
+        default_acl = None
+
+    # ---------------------------------------------------------
+    # 4. URLs PÚBLICAS
+    # ---------------------------------------------------------
+    # Al usar URLs firmadas, a veces es mejor dejar que boto3 construya la URL completa.
+    # Pero definimos estas para mantener compatibilidad con templates.
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/static/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/media/'
     
-    # 5. Motores de Almacenamiento
+    # ---------------------------------------------------------
+    # 5. ASIGNACIÓN DE STORAGES (Django 4.2+)
+    # ---------------------------------------------------------
     STORAGES = {
         "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-            "OPTIONS": {
-                "location": "encuestas_gf/media",
-                "file_overwrite": False,
-            },
+            # IMPORTANTE: Cambia 'core' si tu carpeta de settings se llama diferente
+            "BACKEND": "core.settings.MediaStorage", 
         },
         "staticfiles": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-            "OPTIONS": {
-                "location": "encuestas_gf/static",
-            },
+            # IMPORTANTE: Cambia 'core' si tu carpeta de settings se llama diferente
+            "BACKEND": "core.settings.StaticStorage", 
         },
     }
 
 else:
-    # --- LOCAL (Tu PC) ---
+    # ---------------------------------------------------------
+    # CONFIGURACIÓN LOCAL (Desarrollo)
+    # ---------------------------------------------------------
+    STATIC_URL = '/static/'
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+
     STORAGES = {
-        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
     }
 
 # REDIRECCIONES DE LOGIN
