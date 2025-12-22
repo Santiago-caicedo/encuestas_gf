@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 from decouple import config
 
@@ -41,6 +42,8 @@ INSTALLED_APPS = [
     'empresas',
     'formularios',
     'dashboard',
+
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -118,14 +121,69 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# ==========================================
+# GESTIÓN DE ARCHIVOS (LOCAL vs AWS)
+# ==========================================
 
-STATIC_URL = 'static/'
+# 1. Rutas Base (Siempre necesarias para Local y para collectstatic)
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles' # Donde Django recolecta archivos
 
-STATICFILES_DIRS = [
-    BASE_DIR / 'static', 
-]
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media' # Donde se guardan subidas en local
+
+# 2. El "Interruptor": Leemos si estamos en modo S3
+USE_S3 = os.environ.get('USE_S3') == 'True'
+
+if USE_S3:
+    # -------------------------------------
+    # CONFIGURACIÓN PRODUCCIÓN (AWS S3)
+    # -------------------------------------
+    
+    # Librerías necesarias solo en producción
+    INSTALLED_APPS += ['storages']
+
+    # Configuración AWS
+    AWS_STORAGE_BUCKET_NAME = 'vadomdata'
+    AWS_S3_REGION_NAME = 'us-east-1'
+    AWS_DEFAULT_ACL = None
+    
+    # Prefijo del Cliente (Dinámico por servidor)
+    S3_CLIENT_PREFIX = os.environ.get('S3_CLIENT_PREFIX', 'default')
+
+    # Dominio de S3
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+
+    # Definición de Storages (Django 4.2+)
+    STORAGES = {
+        "default": {
+            "BACKEND": "core.storages.MediaStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "core.storages.StaticStorage",
+        },
+    }
+
+    # Sobreescribimos URLs para que apunten a S3
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_CLIENT_PREFIX}/static/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_CLIENT_PREFIX}/media/'
+
+else:
+    # -------------------------------------
+    # CONFIGURACIÓN LOCAL (Tu PC)
+    # -------------------------------------
+    
+    # Usamos el almacenamiento estándar de archivos
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    
+    # En local no hacemos nada más, usa STATIC_ROOT y MEDIA_ROOT definidos arriba.
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
