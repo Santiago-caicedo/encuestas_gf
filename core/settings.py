@@ -133,86 +133,48 @@ USE_TZ = True
 # Usamos la variable de entorno DEBUG
 if not DEBUG:
     # ---------------------------------------------------------
-    # 1. CONFIGURACIÓN AWS S3
+    # CONFIGURACIÓN AWS S3 (Modo Privado Estricto)
     # ---------------------------------------------------------
     INSTALLED_APPS += ['storages']
 
     AWS_STORAGE_BUCKET_NAME = 'vadomdata'
     AWS_S3_REGION_NAME = 'us-east-1'
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     
-    # --- CRÍTICO: SEGURIDAD Y PERMISOS ---
-    # 1. Evitamos el error 500: No intentamos poner ACLs (el bucket no las permite)
+    # [CAMBIO 1] ¡IMPORTANTE! Comentamos esto.
+    # Si esta línea está activa, Django deja de firmar las URLs.
+    # AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    
+    # --- SEGURIDAD ---
     AWS_DEFAULT_ACL = None 
+    AWS_QUERYSTRING_AUTH = True  # Firmamos las URLs
     
-    # 2. Evitamos el AccessDenied: Firmamos las URLs para poder ver archivos privados
-    AWS_QUERYSTRING_AUTH = True 
-    
-    # 3. Caché (Opcional, para rendimiento)
-    AWS_S3_OBJECT_PARAMETERS = {
-        'CacheControl': 'max-age=86400',
-    }
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
     AWS_S3_FILE_OVERWRITE = False
 
-    # ---------------------------------------------------------
-    # 2. DEFINICIÓN DE CARPETAS (Prefijo)
-    # ---------------------------------------------------------
-    # Aquí defines la carpeta raíz para este proyecto específico
     S3_PREFIX = 'encuestas_gf'
 
-    # ---------------------------------------------------------
-    # 3. CLASES DE ALMACENAMIENTO PERSONALIZADAS
-    # ---------------------------------------------------------
     from storages.backends.s3boto3 import S3Boto3Storage
 
     class StaticStorage(S3Boto3Storage):
         location = f'{S3_PREFIX}/static'
-        default_acl = None # Aseguramos que no intente poner ACLs
+        default_acl = None
 
     class MediaStorage(S3Boto3Storage):
         location = f'{S3_PREFIX}/media'
         file_overwrite = False
         default_acl = None
 
-    # ---------------------------------------------------------
-    # 4. URLs PÚBLICAS
-    # ---------------------------------------------------------
-    # Al usar URLs firmadas, a veces es mejor dejar que boto3 construya la URL completa.
-    # Pero definimos estas para mantener compatibilidad con templates.
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/static/'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_PREFIX}/media/'
-    
-    # ---------------------------------------------------------
-    # 5. ASIGNACIÓN DE STORAGES (Django 4.2+)
-    # ---------------------------------------------------------
-    STORAGES = {
-        "default": {
-            # IMPORTANTE: Cambia 'core' si tu carpeta de settings se llama diferente
-            "BACKEND": "core.settings.MediaStorage", 
-        },
-        "staticfiles": {
-            # IMPORTANTE: Cambia 'core' si tu carpeta de settings se llama diferente
-            "BACKEND": "core.settings.StaticStorage", 
-        },
-    }
-
-else:
-    # ---------------------------------------------------------
-    # CONFIGURACIÓN LOCAL (Desarrollo)
-    # ---------------------------------------------------------
-    STATIC_URL = '/static/'
-    STATIC_ROOT = BASE_DIR / "staticfiles"
-    
-    MEDIA_URL = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
+    # [CAMBIO 2] Definición de URLs
+    # Al quitar el Custom Domain, necesitamos que Django no anteponga nada
+    # y deje que la librería 'boto3' construya la URL completa (firmada).
+    # Ponemos '/static/' solo para cumplir el requisito de Django, pero
+    # el Storage Backend lo sobrescribirá con la URL de S3 real.
+    STATIC_URL = f'/static/'
+    MEDIA_URL = f'/media/'
 
     STORAGES = {
-        "default": {
-            "BACKEND": "django.core.files.storage.FileSystemStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
+        "default": {"BACKEND": "core.settings.MediaStorage"},
+        "staticfiles": {"BACKEND": "core.settings.StaticStorage"},
     }
 
 # REDIRECCIONES DE LOGIN
