@@ -74,14 +74,25 @@
                         </h3>
                         <p class="text-sm text-slate-500 mb-4">Selecciona qué módulos de encuesta podrá ver este cliente.</p>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            
                             <label class="relative flex items-start p-4 cursor-pointer bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all">
                                 <div class="flex items-center h-5">
                                     {{ form.tiene_sagrilaft }}
                                 </div>
                                 <div class="ml-3 text-sm">
-                                    <span class="font-bold text-slate-800 block">Módulo SAGRILAFT</span>
-                                    <span class="text-slate-500 text-xs">Gestión de Lavado de Activos y Financiación del Terrorismo.</span>
+                                    <span class="font-bold text-slate-800 block">SAGRILAFT</span>
+                                    <span class="text-slate-500 text-xs">Sector Real (Supersociedades).</span>
+                                </div>
+                            </label>
+
+                            <label class="relative flex items-start p-4 cursor-pointer bg-white border border-slate-200 rounded-lg hover:border-cyan-400 hover:shadow-sm transition-all">
+                                <div class="flex items-center h-5">
+                                    {{ form.tiene_sarlaft }}
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <span class="font-bold text-slate-800 block">SARLAFT</span>
+                                    <span class="text-slate-500 text-xs">Sector Salud / Transporte / Financiero.</span>
                                 </div>
                             </label>
 
@@ -90,8 +101,8 @@
                                     {{ form.tiene_ptee }}
                                 </div>
                                 <div class="ml-3 text-sm">
-                                    <span class="font-bold text-slate-800 block">Módulo PTEE</span>
-                                    <span class="text-slate-500 text-xs">Programa de Transparencia y Ética Empresarial.</span>
+                                    <span class="font-bold text-slate-800 block">PTEE</span>
+                                    <span class="text-slate-500 text-xs">Transparencia y Ética Empresarial.</span>
                                 </div>
                             </label>
                         </div>
@@ -164,16 +175,18 @@
 </div>
 
 <script>
-    // 1. Slugify Automático
+    // 1. Slugify Automático (Solo al crear)
     {% if not editar %}
     const nombreInput = document.querySelector('input[name="nombre"]');
     const slugInput = document.querySelector('input[name="slug"]');
 
-    nombreInput.addEventListener('input', function() {
-        const val = this.value.toLowerCase();
-        const slug = val.replace(/ /g, '-').replace(/[^\w-]+/g, '');
-        slugInput.value = slug;
-    });
+    if (nombreInput && slugInput) {
+        nombreInput.addEventListener('input', function() {
+            const val = this.value.toLowerCase();
+            const slug = val.replace(/ /g, '-').replace(/[^\w-]+/g, '');
+            slugInput.value = slug;
+        });
+    }
     {% endif %}
 
     // 2. Color Preview
@@ -182,15 +195,17 @@
     const btnPreview = document.getElementById('btn-preview');
 
     function updateColor(color) {
-        hexDisplay.innerText = color;
-        btnPreview.style.backgroundColor = color;
+        if (hexDisplay) hexDisplay.innerText = color;
+        if (btnPreview) btnPreview.style.backgroundColor = color;
     }
 
-    if(colorInput.value) {
+    if(colorInput && colorInput.value) {
         updateColor(colorInput.value);
     }
 
-    colorInput.addEventListener('input', (e) => updateColor(e.target.value));
+    if (colorInput) {
+        colorInput.addEventListener('input', (e) => updateColor(e.target.value));
+    }
 
     // 3. Image Preview
     function previewImage(event) {

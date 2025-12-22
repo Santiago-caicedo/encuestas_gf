@@ -70,9 +70,9 @@
                     </div>
                     
                     {% if empresa.aliado == 'GFR' %}
-                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold" title="Gestión Financiera">GFR</span>
+                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold border border-slate-200" title="Gestión Financiera">GFR</span>
                     {% else %}
-                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold" title="Legal Shield">LS</span>
+                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold border border-slate-200" title="Legal Shield">LS</span>
                     {% endif %}
                 </div>
 
@@ -80,6 +80,11 @@
                     {% if empresa.tiene_sagrilaft %}
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">SAGRILAFT</span>
                     {% endif %}
+                    
+                    {% if empresa.tiene_sarlaft %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-100">SARLAFT</span>
+                    {% endif %}
+                    
                     {% if empresa.tiene_ptee %}
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">PTEE</span>
                     {% endif %}
@@ -103,7 +108,10 @@
             </div>
         </div>
         {% empty %}
-            <div class="col-span-full py-12 text-center text-slate-400">No se encontraron empresas con esos criterios.</div>
+            <div class="col-span-full py-12 text-center text-slate-400 flex flex-col items-center">
+                <i class="far fa-folder-open text-4xl mb-3 opacity-50"></i>
+                <p>No se encontraron empresas con esos criterios.</p>
+            </div>
         {% endfor %}
     </div>
 
@@ -141,10 +149,16 @@
                                 {% if empresa.tiene_sagrilaft %}
                                     <span class="px-2 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">SAGRILAFT</span>
                                 {% endif %}
+                                
+                                {% if empresa.tiene_sarlaft %}
+                                    <span class="px-2 py-1 rounded text-[10px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-100">SARLAFT</span>
+                                {% endif %}
+                                
                                 {% if empresa.tiene_ptee %}
                                     <span class="px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">PTEE</span>
                                 {% endif %}
-                                {% if not empresa.tiene_sagrilaft and not empresa.tiene_ptee %}
+                                
+                                {% if not empresa.tiene_sagrilaft and not empresa.tiene_sarlaft and not empresa.tiene_ptee %}
                                     <span class="text-xs text-slate-400">-</span>
                                 {% endif %}
                             </div>
@@ -195,7 +209,7 @@
         copyText.setSelectionRange(0, 99999); 
         navigator.clipboard.writeText(copyText.value);
         
-        // Feedback visual temporal
+        // Feedback visual
         copyText.classList.add('ring-2', 'ring-green-500', 'border-green-500');
         setTimeout(() => {
             copyText.classList.remove('ring-2', 'ring-green-500', 'border-green-500');

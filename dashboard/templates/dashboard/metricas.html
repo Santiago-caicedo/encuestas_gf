@@ -27,7 +27,7 @@
                 </select>
             </form>
 
-            <div class="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div> <a href="{% url 'dashboard_home' %}" class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-600 transition-colors">
+            <div class="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div> <a href="{% url 'lista_empresas' %}" class="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-600 transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i> Volver
             </a>
             <a href="{% url 'ver_encuesta' empresa.slug %}" target="_blank" class="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors shadow-sm">
@@ -71,13 +71,22 @@
                         <span class="text-sm font-bold text-blue-700">SAGRILAFT Activo</span>
                     </div>
                 {% endif %}
+                
+                {% if empresa.tiene_sarlaft %}
+                    <div class="flex items-center gap-2 px-3 py-2 bg-cyan-50 border border-cyan-100 rounded-lg">
+                        <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+                        <span class="text-sm font-bold text-cyan-700">SARLAFT Activo</span>
+                    </div>
+                {% endif %}
+
                 {% if empresa.tiene_ptee %}
                     <div class="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-100 rounded-lg">
                         <span class="w-2 h-2 rounded-full bg-purple-500"></span>
                         <span class="text-sm font-bold text-purple-700">PTEE Activo</span>
                     </div>
                 {% endif %}
-                {% if not empresa.tiene_sagrilaft and not empresa.tiene_ptee %}
+                
+                {% if not empresa.tiene_sagrilaft and not empresa.tiene_ptee and not empresa.tiene_sarlaft %}
                     <span class="text-sm text-slate-400 italic">No hay servicios configurados.</span>
                 {% endif %}
             </div>
@@ -96,13 +105,13 @@
             </div>
         </div>
 
+        {% if empresa.tiene_sagrilaft %}
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
             <h3 class="font-bold text-slate-700 mb-4 border-b pb-2 flex items-center justify-between">
-                <span>Indicadores de Conocimiento (Riesgo LA/FT)</span>
-                <i class="fas fa-chart-bar text-slate-300"></i>
+                <span>Indicadores de Conocimiento (SAGRILAFT)</span>
+                <i class="fas fa-chart-bar text-blue-300"></i>
             </h3>
             
-            {% if empresa.tiene_sagrilaft %}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="relative h-64 w-full">
                     <p class="text-center text-xs font-bold text-slate-500 uppercase mb-2">¿Conocen el Sistema?</p>
@@ -113,12 +122,30 @@
                     <canvas id="chartSagrilaftDenuncia"></canvas>
                 </div>
             </div>
-            {% else %}
-            <div class="flex items-center justify-center h-64 text-slate-400 italic bg-slate-50 rounded-lg">
-                El módulo SAGRILAFT no está activo para esta empresa.
-            </div>
-            {% endif %}
         </div>
+        {% elif empresa.tiene_sarlaft %}
+        <div class="hidden lg:block lg:col-span-2"></div>
+        {% endif %}
+
+        {% if empresa.tiene_sarlaft %}
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-3">
+            <h3 class="font-bold text-slate-700 mb-4 border-b pb-2 flex items-center justify-between">
+                <span>Indicadores SARLAFT (Salud / Transporte / Financiero)</span>
+                <i class="fas fa-chart-bar text-cyan-300"></i>
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="relative h-64 w-full md:w-3/4 mx-auto">
+                    <p class="text-center text-xs font-bold text-slate-500 uppercase mb-2">¿Conocen el Sistema SARLAFT?</p>
+                    <canvas id="chartSarlaftConoce"></canvas>
+                </div>
+                <div class="relative h-64 w-full md:w-3/4 mx-auto">
+                    <p class="text-center text-xs font-bold text-slate-500 uppercase mb-2">Canales de Denuncia</p>
+                    <canvas id="chartSarlaftDenuncia"></canvas>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         {% if empresa.tiene_ptee %}
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-3">
@@ -207,11 +234,21 @@
                         <td class="px-6 py-3 text-center">
                             {% if empresa.tiene_sagrilaft %}
                                 {% if reg.respuestas_data.p5_sagrilaft_conoce == 'SI' %}
-                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600 border border-green-200" title="Conoce el sistema">
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-600 border border-green-200" title="SAGRILAFT: Conoce el sistema">
                                         <i class="fas fa-check"></i>
                                     </div>
                                 {% else %}
-                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 border border-red-200 animate-pulse" title="Riesgo: No conoce o No recuerda">
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 border border-red-200" title="SAGRILAFT: Riesgo (No conoce/No recuerda)">
+                                        <i class="fas fa-exclamation"></i>
+                                    </div>
+                                {% endif %}
+                            {% elif empresa.tiene_sarlaft %}
+                                {% if reg.respuestas_data.p5_sarlaft_conoce == 'SI' %}
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-cyan-100 text-cyan-600 border border-cyan-200" title="SARLAFT: Conoce el sistema">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                {% else %}
+                                    <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-100 text-red-600 border border-red-200" title="SARLAFT: Riesgo (No conoce/No recuerda)">
                                         <i class="fas fa-exclamation"></i>
                                     </div>
                                 {% endif %}
@@ -250,10 +287,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // Configuración Global de Fuentes para que se vea pro
+    // Configuración Global de Fuentes
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#64748b';
-    Chart.defaults.maintainAspectRatio = false; // CLAVE: Permite que el gráfico respete la altura del contenedor
+    Chart.defaults.maintainAspectRatio = false;
 
     // 1. GRÁFICO DE DONA (Tipos de Tercero)
     const ctxTipos = document.getElementById('chartTipos');
@@ -272,7 +309,7 @@
             },
             options: { 
                 responsive: true, 
-                maintainAspectRatio: false, // CLAVE
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } }
                 },
@@ -281,9 +318,8 @@
         });
     }
 
-    // 2. GRÁFICOS SAGRILAFT (Solo si existen los canvas)
+    // 2. GRÁFICOS SAGRILAFT (Si aplica)
     {% if empresa.tiene_sagrilaft %}
-        // A. Conocimiento General (Pie)
         const ctxSag1 = document.getElementById('chartSagrilaftConoce');
         if (ctxSag1) {
             new Chart(ctxSag1, {
@@ -298,14 +334,11 @@
                     }]
                 },
                 options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }
                 }
             });
         }
 
-        // B. Canales de Denuncia (Bar)
         const ctxSag2 = document.getElementById('chartSagrilaftDenuncia');
         if (ctxSag2) {
             new Chart(ctxSag2, {
@@ -321,19 +354,57 @@
                     }]
                 },
                 options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { 
-                        y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
-                        x: { grid: { display: false } }
-                    }
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
                 }
             });
         }
     {% endif %}
 
-    // 3. GRÁFICO PTEE (Si aplica)
+    // 3. GRÁFICOS SARLAFT (NUEVO)
+    {% if empresa.tiene_sarlaft %}
+        const ctxSar1 = document.getElementById('chartSarlaftConoce');
+        if (ctxSar1) {
+            new Chart(ctxSar1, {
+                type: 'pie',
+                data: {
+                    labels: ['Sí Conocen', 'No Conocen/No Recuerdan'],
+                    datasets: [{
+                        data: {{ stats_sarlaft.conocimiento|safe }},
+                        backgroundColor: ['#06b6d4', '#ef4444'], // Cyan vs Rojo
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+
+        const ctxSar2 = document.getElementById('chartSarlaftDenuncia');
+        if (ctxSar2) {
+            new Chart(ctxSar2, {
+                type: 'bar',
+                data: {
+                    labels: ['Saben Denunciar', 'No Saben Denunciar'],
+                    datasets: [{
+                        label: 'Usuarios',
+                        data: {{ stats_sarlaft.denuncia|safe }},
+                        backgroundColor: ['#0891b2', '#f59e0b'], // Cyan Oscuro vs Amarillo
+                        borderRadius: 6,
+                        barThickness: 40
+                    }]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+                }
+            });
+        }
+    {% endif %}
+
+    // 4. GRÁFICO PTEE (Si aplica)
     {% if empresa.tiene_ptee %}
         const ctxPtee = document.getElementById('chartPteeConoce');
         if (ctxPtee) {
@@ -349,9 +420,7 @@
                     }]
                 },
                 options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom' } }
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }
                 }
             });
         }

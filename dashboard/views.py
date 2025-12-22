@@ -96,72 +96,103 @@ def ver_metricas(request, id):
     empresa = get_object_or_404(EmpresaCliente, id=id)
     
     # 1. GESTIÓN DE AÑOS (VIGENCIAS)
-    # Obtenemos los años disponibles en la BD para esta empresa
+    # Extraemos los años disponibles en los registros para llenar el selector
     anios_disponibles = empresa.registros.annotate(anio=ExtractYear('fecha_registro')).values_list('anio', flat=True).distinct().order_by('-anio')
     
-    # Año actual por defecto
     anio_actual = datetime.date.today().year
     
-    # Si el usuario seleccionó un año en el dropdown, lo usamos. Si no, usamos el actual.
-    anio_seleccionado = int(request.GET.get('vigencia', anio_actual))
+    # Intentamos obtener el año de la URL, si no, usamos el actual
+    try:
+        anio_seleccionado = int(request.GET.get('vigencia', anio_actual))
+    except ValueError:
+        anio_seleccionado = anio_actual
     
-    # Si no hay registros aún, forzamos que aparezca el año actual en la lista
+    # Aseguramos que el año actual aparezca en la lista aunque no haya registros aún
     lista_anios = list(anios_disponibles)
     if anio_actual not in lista_anios:
         lista_anios.insert(0, anio_actual)
 
-    # 2. FILTRADO BASE (Toda la data de la vista dependerá de esto)
-    # Filtramos los registros GLOBALES de la vista por el año seleccionado
+    # 2. QUERYSET BASE (Filtrado por Año)
+    # Todos los cálculos estadísticos se basan en este conjunto del año seleccionado
     registros_anio = empresa.registros.filter(fecha_registro__year=anio_seleccionado).order_by('-fecha_registro')
     total = registros_anio.count()
 
-    # 3. FILTROS ADICIONALES (Tabla)
-    # Estos filtros operan SOBRE el conjunto del año seleccionado
+    # 3. FILTROS ADICIONALES (Solo para la Tabla Visual)
+    # Estos filtros permiten buscar en la tabla sin afectar los gráficos globales del año
     f_tipo = request.GET.get('tipo')
-    registros_tabla = registros_anio # Copia para filtrar
+    f_inicio = request.GET.get('fecha_inicio')
+    f_fin = request.GET.get('fecha_fin')
+
+    registros_tabla = registros_anio 
 
     if f_tipo:
         registros_tabla = registros_tabla.filter(tipo_tercero=f_tipo)
+    if f_inicio:
+        registros_tabla = registros_tabla.filter(fecha_registro__date__gte=f_inicio)
+    if f_fin:
+        registros_tabla = registros_tabla.filter(fecha_registro__date__lte=f_fin)
 
+    # Limitamos a 50 para no saturar el DOM, el resto se ve en "Ver Todos"
     registros_visuales = registros_tabla[:50]
 
-    # 4. GRÁFICOS (Ahora usan 'registros_anio' en lugar de todos)
-    
-    # A) Demografía
+    # 4. CÁLCULO DE GRÁFICOS Y KPIs
+
+    # A) Demografía (Distribución por Tipo de Tercero)
+    # NOTA: .order_by() vacío al final es CRÍTICO para limpiar el ordenamiento por fecha 
+    # y permitir que el annotate agrupe correctamente.
     data_distribucion = registros_anio.values('tipo_tercero').annotate(total=Count('id')).order_by()
+    
     labels_tipos = [item['tipo_tercero'] for item in data_distribucion]
     data_tipos = [item['total'] for item in data_distribucion]
 
-    # B) SAGRILAFT
+    # B) SAGRILAFT (Si aplica)
     stats_sagrilaft = {}
-    if empresa.tiene_sagrilaft: # Quitamos la condición 'and total > 0' para que pinte vacíos si es año nuevo
+    if empresa.tiene_sagrilaft:
+        # Pregunta 5: Conocimiento del Sistema
         conocen = registros_anio.filter(respuestas_data__p5_sagrilaft_conoce='SI').count()
         no_conocen = total - conocen
         stats_sagrilaft['conocimiento'] = [conocen, no_conocen]
         
+        # Pregunta 8: Canales de Denuncia
         saben_denunciar = registros_anio.filter(respuestas_data__p8_sagrilaft_denuncia='SI').count()
         no_saben = total - saben_denunciar
         stats_sagrilaft['denuncia'] = [saben_denunciar, no_saben]
 
-    # C) PTEE
+    # C) SARLAFT (NUEVO - Si aplica)
+    stats_sarlaft = {}
+    if empresa.tiene_sarlaft:
+        # Pregunta 5: Conocimiento del Sistema SARLAFT
+        conocen_sar = registros_anio.filter(respuestas_data__p5_sarlaft_conoce='SI').count()
+        no_conocen_sar = total - conocen_sar
+        stats_sarlaft['conocimiento'] = [conocen_sar, no_conocen_sar]
+        
+        # Pregunta 8: Canales de Denuncia SARLAFT
+        saben_denunciar_sar = registros_anio.filter(respuestas_data__p8_sarlaft_denuncia='SI').count()
+        no_saben_sar = total - saben_denunciar_sar
+        stats_sarlaft['denuncia'] = [saben_denunciar_sar, no_saben_sar]
+
+    # D) PTEE (Si aplica)
     stats_ptee = {}
     if empresa.tiene_ptee:
+        # Pregunta 9: Conocimiento del PTEE
         conocen_ptee = registros_anio.filter(respuestas_data__p9_ptee_conoce='SI').count()
         no_conocen_ptee = total - conocen_ptee
         stats_ptee['conocimiento'] = [conocen_ptee, no_conocen_ptee]
 
+    # 5. RENDERIZADO
     return render(request, 'dashboard/metricas.html', {
         'empresa': empresa,
         'total': total,
         'registros': registros_visuales,
-        # Variables nuevas para el control de años
+        # Variables de contexto para filtros y años
         'lista_anios': lista_anios,
         'anio_seleccionado': anio_seleccionado,
-        # Resto de contexto
-        'filtros': {'tipo': f_tipo},
+        'filtros': {'tipo': f_tipo, 'inicio': f_inicio, 'fin': f_fin},
+        # Datos para Chart.js
         'labels_tipos': labels_tipos,
         'data_tipos': data_tipos,
         'stats_sagrilaft': stats_sagrilaft,
+        'stats_sarlaft': stats_sarlaft, # Nuevo
         'stats_ptee': stats_ptee,
     })
 

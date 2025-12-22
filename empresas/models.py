@@ -25,6 +25,7 @@ class EmpresaCliente(models.Model):
 
     # CONFIGURACIÓN DE SERVICIOS CONTRATADOS
     tiene_sagrilaft = models.BooleanField(default=True, verbose_name="Activar Bloque SAGRILAFT")
+    tiene_sarlaft = models.BooleanField(default=False)
     tiene_ptee = models.BooleanField(default=False, verbose_name="Activar Bloque PTEE")
 
     activo = models.BooleanField(default=True)

@@ -127,51 +127,58 @@ USE_TZ = True
 
 
 # ==========================================
-# GESTIÓN DE ARCHIVOS (Lógica Simplificada)
+# GESTIÓN DE ARCHIVOS (Estilo Geolab)
 # ==========================================
 
-# Rutas base para recolección (necesarias siempre)
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Lógica Inteligente: ¿Estoy en Producción?
+# Usamos el mismo truco del DEBUG que validamos antes
+DEBUG = os.environ.get('DEBUG') == 'True'
 
 if not DEBUG:
     # ---------------------------------------------------------
-    # MODO PRODUCCIÓN (AWS S3) - Se activa si DEBUG es False
+    # CONFIGURACIÓN AWS S3 (Producción)
     # ---------------------------------------------------------
-    
-    # Librerías de almacenamiento
+    INSTALLED_APPS += ['storages']
 
-    # Configuración del Bucket
     AWS_STORAGE_BUCKET_NAME = 'vadomdata'
     AWS_S3_REGION_NAME = 'us-east-1'
-    AWS_DEFAULT_ACL = None
-    
-    # PREFIJO DEL CLIENTE (Directo en el archivo, sin .env)
-    S3_CLIENT_PREFIX = 'encuestas_gf' 
-
-    # Dominio S3
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
-
-    # Definición de Motores de Almacenamiento
+    
+    # IMPORTANTE: Esto sube los archivos "Privados" por defecto.
+    # Por eso NECESITAS la Bucket Policy en la consola de AWS.
+    AWS_DEFAULT_ACL = None 
+    
+    # 1. URLs apuntando a la carpeta del cliente
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/static/'
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/encuestas_gf/media/'
+    
+    # 2. Definición de Storages (Sin archivo storages.py)
     STORAGES = {
         "default": {
-            "BACKEND": "core.storages.MediaStorage",
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "location": "encuestas_gf/media",  # <--- Carpeta específica
+                "file_overwrite": False,
+            },
         },
         "staticfiles": {
-            "BACKEND": "core.storages.StaticStorage",
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "location": "encuestas_gf/static", # <--- Carpeta específica
+            },
         },
     }
 
-    # URLs Públicas (Apuntan a S3)
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_CLIENT_PREFIX}/static/'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{S3_CLIENT_PREFIX}/media/'
-
 else:
     # ---------------------------------------------------------
-    # MODO LOCAL (Tu PC) - Se activa si DEBUG es True
+    # CONFIGURACIÓN LOCAL
     # ---------------------------------------------------------
-    
-    # Almacenamiento local clásico
     STORAGES = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -180,20 +187,6 @@ else:
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
     }
-
-    # URLs Locales
-    STATIC_URL = '/static/'
-    MEDIA_URL = '/media/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
 
 # REDIRECCIONES DE LOGIN
 LOGIN_URL = 'login'             # Si no estás logueado, te manda aquí
