@@ -2,14 +2,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.contrib.auth import views as auth_views
+from .auth_views import SecureLoginView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
+
     # --- AUTENTICACIÓN ---
-    # Login personalizado
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
+    # Login con protección anti brute-force
+    path('accounts/login/', SecureLoginView.as_view(), name='login'),
     # Resto de funciones de auth (logout, password reset, etc)
     path('accounts/', include('django.contrib.auth.urls')),
     

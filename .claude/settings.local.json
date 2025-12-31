@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /mnt/c/Users/ASUS/documents/gestion_riesgos log --oneline)"
+    ]
+  }
+}

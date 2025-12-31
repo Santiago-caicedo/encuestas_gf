@@ -241,6 +241,9 @@ def ver_todos_registros(request, id):
 
 @login_required
 def exportar_excel(request, id):
+    # SEGURIDAD: Límite máximo de registros para evitar memory exhaustion
+    MAX_EXPORT_RECORDS = 10000
+
     empresa = get_object_or_404(EmpresaCliente, id=id)
     registros = empresa.registros.all().order_by('-fecha_registro')
 
@@ -258,6 +261,10 @@ def exportar_excel(request, id):
         registros = registros.filter(fecha_registro__date__lte=f_fin)
     if f_nombre:
         registros = registros.filter(nombre_respondiente__icontains=f_nombre)
+
+    # SEGURIDAD: Aplicar límite máximo
+    total_registros = registros.count()
+    registros = registros[:MAX_EXPORT_RECORDS]
 
     # 2. PREPARAMOS EL ARCHIVO HTTP (Tipo CSV compatible con Excel)
     response = HttpResponse(content_type='text/csv')
@@ -357,6 +364,10 @@ def usuarios_internos(request):
 
 @user_passes_test(es_superusuario, login_url='dashboard_home')
 def eliminar_usuario(request, id):
+    # SEGURIDAD: Solo permitir eliminación vía POST
+    if request.method != 'POST':
+        return redirect('usuarios_internos')
+
     user_to_delete = get_object_or_404(User, id=id)
     # Evitar que te borres a ti mismo
     if user_to_delete.id != request.user.id:

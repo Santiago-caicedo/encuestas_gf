@@ -1,27 +1,32 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from empresas.models import EmpresaCliente
 from .models import RegistroEncuesta
+from core.security import sanitize_string, sanitize_dict, get_client_ip, rate_limit
 
+
+@rate_limit(key_prefix='encuesta', max_requests=10, window_seconds=60)
 def ver_encuesta_publica(request, slug):
     empresa = get_object_or_404(EmpresaCliente, slug=slug, activo=True)
-    
+
     if request.method == 'POST':
         datos = request.POST
-        
-        # Guardamos la respuesta
+
+        # SEGURIDAD: Sanitizar todos los datos de entrada para prevenir XSS
+        campos_excluidos = ['csrfmiddlewaretoken', 'nombre', 'area', 'cargo', 'tipo_tercero', 'nombre_contacto']
+        respuestas_raw = {k: v for k, v in datos.items() if k not in campos_excluidos}
+        respuestas_sanitizadas = sanitize_dict(respuestas_raw)
+
+        # Guardamos la respuesta con datos sanitizados
         RegistroEncuesta.objects.create(
             empresa=empresa,
-            tipo_tercero=datos.get('tipo_tercero'),
-            nombre_respondiente=datos.get('nombre'),
-            area=datos.get('area'),
-            cargo=datos.get('cargo'),
-            # Filtramos para no guardar el csrf token ni los campos que ya sacamos aparte
-            respuestas_data={k: v for k, v in datos.items() if k not in ['csrfmiddlewaretoken', 'nombre', 'area', 'cargo', 'tipo_tercero', 'nombre_contacto']},
-            ip_origen=request.META.get('REMOTE_ADDR')
+            tipo_tercero=sanitize_string(datos.get('tipo_tercero', '')),
+            nombre_respondiente=sanitize_string(datos.get('nombre', '')),
+            area=sanitize_string(datos.get('area', '')),
+            cargo=sanitize_string(datos.get('cargo', '')),
+            respuestas_data=respuestas_sanitizadas,
+            ip_origen=get_client_ip(request)  # SEGURIDAD: Obtener IP real considerando proxies
         )
-        
-        # AQUÍ ESTÁ EL CAMBIO CLAVE:
-        # En lugar de render(...), usamos redirect a la nueva URL de éxito
+
         return redirect('encuesta_exito', slug=slug)
 
     return render(request, 'formularios/encuesta_publica.html', {
@@ -30,6 +35,6 @@ def ver_encuesta_publica(request, slug):
 
 
 def encuesta_exito(request, slug):
-    # Solo buscamos la empresa para pintar el logo y colores en la página de gracias
-    empresa = get_object_or_404(EmpresaCliente, slug=slug)
+    # SEGURIDAD: Solo mostrar página de gracias si la empresa está activa
+    empresa = get_object_or_404(EmpresaCliente, slug=slug, activo=True)
     return render(request, 'formularios/gracias.html', {'empresa': empresa})

@@ -55,7 +55,39 @@
             </div>
 
             <div class="mt-10">
-                {% if form.errors %}
+                {% if messages %}
+                    {% for message in messages %}
+                        {% if message.tags == 'error' %}
+                            <div class="rounded-md bg-red-50 p-4 mb-6 border-l-4 border-red-500">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-ban text-red-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-red-800">Acceso bloqueado</h3>
+                                        <div class="mt-2 text-sm text-red-700">
+                                            <p>{{ message }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% elif message.tags == 'warning' %}
+                            <div class="rounded-md bg-yellow-50 p-4 mb-6 border-l-4 border-yellow-500">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h3 class="text-sm font-medium text-yellow-800">Advertencia</h3>
+                                        <div class="mt-2 text-sm text-yellow-700">
+                                            <p>{{ message }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% elif form.errors %}
                     <div class="rounded-md bg-red-50 p-4 mb-6 border-l-4 border-red-500 animate-pulse">
                         <div class="flex">
                             <div class="flex-shrink-0">

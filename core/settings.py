@@ -218,3 +218,41 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # Si el usuario navega, el tiempo vuelve a contar desde cero.
 # Si deja la pantalla quieta 30 min, se cierra.
 SESSION_SAVE_EVERY_REQUEST = True
+
+
+# ==========================================
+# CONFIGURACIÓN DE SEGURIDAD (Producción)
+# ==========================================
+if not DEBUG:
+    # Forzar HTTPS
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    # Cookies seguras
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # HSTS (HTTP Strict Transport Security)
+    SECURE_HSTS_SECONDS = 31536000  # 1 año
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Prevenir clickjacking
+    X_FRAME_OPTIONS = 'DENY'
+
+    # Prevenir MIME type sniffing
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+    # Habilitar XSS filter del navegador
+    SECURE_BROWSER_XSS_FILTER = True
+
+
+# ==========================================
+# CONFIGURACIÓN DE CACHE (Para Rate Limiting)
+# ==========================================
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}

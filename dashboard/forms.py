@@ -1,6 +1,10 @@
+import re
 from django import forms
+from django.core.exceptions import ValidationError
 from empresas.models import EmpresaCliente
 from django.contrib.auth.models import User
+from core.security import validate_hex_color
+
 
 class EmpresaForm(forms.ModelForm):
     class Meta:
@@ -16,6 +20,17 @@ class EmpresaForm(forms.ModelForm):
             'tiene_sarlaft': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded text-cyan-600 focus:ring-cyan-500'}),
             'tiene_ptee': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded text-purple-600 focus:ring-purple-500'}),
         }
+
+    def clean_color_primario(self):
+        """SEGURIDAD: Validar que el color sea un hex válido para prevenir CSS injection."""
+        color = self.cleaned_data.get('color_primario', '')
+        validated_color = validate_hex_color(color)
+
+        # Si el color fue modificado por la validación, significa que no era válido
+        if color and color != validated_color and color != '#000000':
+            raise ValidationError('El color debe ser un código hexadecimal válido (ej: #FF5733)')
+
+        return validated_color
 
 
 class NuevoUsuarioForm(forms.ModelForm):

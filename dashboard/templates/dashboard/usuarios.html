@@ -107,9 +107,12 @@
                             </td>
                             <td class="px-6 py-4 text-right">
                                 {% if u.id != request.user.id %}
-                                    <a href="{% url 'eliminar_usuario' u.id %}" onclick="return confirm('¿Estás seguro de eliminar a {{ u.username }}? Esta acción no se puede deshacer.')" class="text-slate-400 hover:text-red-600 transition-colors p-2" title="Eliminar Usuario">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </a>
+                                    <form method="POST" action="{% url 'eliminar_usuario' u.id %}" class="inline" onsubmit="return confirm('¿Estás seguro de eliminar a {{ u.username }}? Esta acción no se puede deshacer.')">
+                                        {% csrf_token %}
+                                        <button type="submit" class="text-slate-400 hover:text-red-600 transition-colors p-2" title="Eliminar Usuario">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
                                 {% else %}
                                     <span class="text-xs text-slate-300 italic">Tú</span>
                                 {% endif %}
