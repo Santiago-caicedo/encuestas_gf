@@ -1,16 +1,18 @@
 import datetime
-from django.db.models.functions import ExtractYear
+from django.db.models.functions import ExtractYear, ExtractMonth, TruncMonth
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.decorators import login_required
 from .forms import EmpresaForm, NuevoUsuarioForm
 from empresas.models import EmpresaCliente
 from django.contrib.auth.models import User
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Avg
 from formularios.models import RegistroEncuesta
 from django.core.paginator import Paginator
 import csv
 from django.http import HttpResponse
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
 
 
 
@@ -19,14 +21,237 @@ def dashboard_home(request):
     # Métricas Globales
     total_empresas = EmpresaCliente.objects.filter(activo=True).count()
     total_registros = RegistroEncuesta.objects.count()
-    
+
     # Actividad Reciente (Últimos 10 registros de CUALQUIER empresa)
     ultimos_registros = RegistroEncuesta.objects.all().order_by('-fecha_registro')[:10]
-    
+
     return render(request, 'dashboard/global_home.html', {
         'total_empresas': total_empresas,
         'total_registros': total_registros,
         'ultimos_registros': ultimos_registros
+    })
+
+
+@login_required
+def metricas_globales(request):
+    """
+    Dashboard de métricas globales con KPIs estratégicos de todo el sistema.
+    """
+    hoy = timezone.now()
+    inicio_mes_actual = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    inicio_mes_anterior = (inicio_mes_actual - relativedelta(months=1))
+    inicio_anio = hoy.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    # ==========================================
+    # KPIs PRINCIPALES
+    # ==========================================
+    total_empresas = EmpresaCliente.objects.filter(activo=True).count()
+    total_respuestas = RegistroEncuesta.objects.count()
+
+    # Respuestas este mes vs mes anterior
+    respuestas_mes_actual = RegistroEncuesta.objects.filter(fecha_registro__gte=inicio_mes_actual).count()
+    respuestas_mes_anterior = RegistroEncuesta.objects.filter(
+        fecha_registro__gte=inicio_mes_anterior,
+        fecha_registro__lt=inicio_mes_actual
+    ).count()
+
+    # Calcular variación porcentual
+    if respuestas_mes_anterior > 0:
+        variacion_mensual = round(((respuestas_mes_actual - respuestas_mes_anterior) / respuestas_mes_anterior) * 100, 1)
+    else:
+        variacion_mensual = 100 if respuestas_mes_actual > 0 else 0
+
+    # Respuestas este año
+    respuestas_anio = RegistroEncuesta.objects.filter(fecha_registro__gte=inicio_anio).count()
+
+    # Promedio de respuestas por empresa
+    promedio_por_empresa = round(total_respuestas / total_empresas, 1) if total_empresas > 0 else 0
+
+    # ==========================================
+    # TOP 10 EMPRESAS CON MÁS RESPUESTAS
+    # ==========================================
+    top_empresas = EmpresaCliente.objects.filter(activo=True).annotate(
+        total_respuestas=Count('registros')
+    ).order_by('-total_respuestas')[:10]
+
+    top_empresas_labels = [e.nombre[:20] + '...' if len(e.nombre) > 20 else e.nombre for e in top_empresas]
+    top_empresas_data = [e.total_respuestas for e in top_empresas]
+
+    # ==========================================
+    # DISTRIBUCIÓN POR TIPO DE TERCERO (GLOBAL)
+    # ==========================================
+    distribucion_tipo = RegistroEncuesta.objects.values('tipo_tercero').annotate(
+        total=Count('id')
+    ).order_by('-total')
+
+    tipo_labels = [d['tipo_tercero'] or 'Sin especificar' for d in distribucion_tipo]
+    tipo_data = [d['total'] for d in distribucion_tipo]
+
+    # ==========================================
+    # DISTRIBUCIÓN POR ALIADO
+    # ==========================================
+    distribucion_aliado = EmpresaCliente.objects.filter(activo=True).values('aliado').annotate(
+        total=Count('id')
+    )
+
+    aliado_labels = []
+    aliado_data = []
+    for d in distribucion_aliado:
+        if d['aliado'] == 'GFR':
+            aliado_labels.append('Gestión Financiera de Riesgos')
+        elif d['aliado'] == 'LEGAL_SHIELD':
+            aliado_labels.append('Legal Shield')
+        else:
+            aliado_labels.append(d['aliado'])
+        aliado_data.append(d['total'])
+
+    # ==========================================
+    # TENDENCIA MENSUAL (ÚLTIMOS 12 MESES)
+    # ==========================================
+    hace_12_meses = hoy - relativedelta(months=12)
+
+    tendencia_mensual = RegistroEncuesta.objects.filter(
+        fecha_registro__gte=hace_12_meses
+    ).annotate(
+        mes=TruncMonth('fecha_registro')
+    ).values('mes').annotate(
+        total=Count('id')
+    ).order_by('mes')
+
+    # Crear lista completa de 12 meses (incluyendo meses sin datos)
+    meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    tendencia_labels = []
+    tendencia_data = []
+
+    # Crear diccionario con datos existentes
+    datos_por_mes = {d['mes'].strftime('%Y-%m'): d['total'] for d in tendencia_mensual}
+
+    # Iterar últimos 12 meses
+    for i in range(11, -1, -1):
+        fecha_mes = hoy - relativedelta(months=i)
+        clave = fecha_mes.strftime('%Y-%m')
+        tendencia_labels.append(f"{meses_nombres[fecha_mes.month - 1]} {fecha_mes.year}")
+        tendencia_data.append(datos_por_mes.get(clave, 0))
+
+    # ==========================================
+    # CONOCIMIENTO SAGRILAFT (GLOBAL)
+    # ==========================================
+    empresas_sagrilaft = EmpresaCliente.objects.filter(activo=True, tiene_sagrilaft=True)
+    registros_sagrilaft = RegistroEncuesta.objects.filter(empresa__in=empresas_sagrilaft)
+    total_sagrilaft = registros_sagrilaft.count()
+
+    if total_sagrilaft > 0:
+        conocen_sagrilaft = registros_sagrilaft.filter(respuestas_data__p5_sagrilaft_conoce='SI').count()
+        no_conocen_sagrilaft = total_sagrilaft - conocen_sagrilaft
+        pct_conoce_sagrilaft = round((conocen_sagrilaft / total_sagrilaft) * 100, 1)
+    else:
+        conocen_sagrilaft = 0
+        no_conocen_sagrilaft = 0
+        pct_conoce_sagrilaft = 0
+
+    # ==========================================
+    # CONOCIMIENTO PTEE (GLOBAL)
+    # ==========================================
+    empresas_ptee = EmpresaCliente.objects.filter(activo=True, tiene_ptee=True)
+    registros_ptee = RegistroEncuesta.objects.filter(empresa__in=empresas_ptee)
+    total_ptee = registros_ptee.count()
+
+    if total_ptee > 0:
+        conocen_ptee = registros_ptee.filter(respuestas_data__p9_ptee_conoce='SI').count()
+        no_conocen_ptee = total_ptee - conocen_ptee
+        pct_conoce_ptee = round((conocen_ptee / total_ptee) * 100, 1)
+    else:
+        conocen_ptee = 0
+        no_conocen_ptee = 0
+        pct_conoce_ptee = 0
+
+    # ==========================================
+    # CONOCIMIENTO SARLAFT (GLOBAL)
+    # ==========================================
+    empresas_sarlaft = EmpresaCliente.objects.filter(activo=True, tiene_sarlaft=True)
+    registros_sarlaft = RegistroEncuesta.objects.filter(empresa__in=empresas_sarlaft)
+    total_sarlaft = registros_sarlaft.count()
+
+    if total_sarlaft > 0:
+        conocen_sarlaft = registros_sarlaft.filter(respuestas_data__p5_sarlaft_conoce='SI').count()
+        pct_conoce_sarlaft = round((conocen_sarlaft / total_sarlaft) * 100, 1)
+    else:
+        conocen_sarlaft = 0
+        pct_conoce_sarlaft = 0
+
+    # ==========================================
+    # EMPRESAS SIN ACTIVIDAD (últimos 30 días)
+    # ==========================================
+    hace_30_dias = hoy - relativedelta(days=30)
+    empresas_activas_reciente = RegistroEncuesta.objects.filter(
+        fecha_registro__gte=hace_30_dias
+    ).values_list('empresa_id', flat=True).distinct()
+
+    empresas_sin_actividad = EmpresaCliente.objects.filter(
+        activo=True
+    ).exclude(
+        id__in=empresas_activas_reciente
+    ).annotate(
+        total_respuestas=Count('registros')
+    ).order_by('-total_respuestas')[:10]
+
+    # ==========================================
+    # ACTIVIDAD RECIENTE
+    # ==========================================
+    ultimas_respuestas = RegistroEncuesta.objects.select_related('empresa').order_by('-fecha_registro')[:15]
+
+    return render(request, 'dashboard/metricas_globales.html', {
+        # KPIs
+        'total_empresas': total_empresas,
+        'total_respuestas': total_respuestas,
+        'respuestas_mes_actual': respuestas_mes_actual,
+        'respuestas_mes_anterior': respuestas_mes_anterior,
+        'variacion_mensual': variacion_mensual,
+        'respuestas_anio': respuestas_anio,
+        'promedio_por_empresa': promedio_por_empresa,
+
+        # Top empresas
+        'top_empresas': top_empresas,
+        'top_empresas_labels': top_empresas_labels,
+        'top_empresas_data': top_empresas_data,
+
+        # Distribución tipo tercero
+        'tipo_labels': tipo_labels,
+        'tipo_data': tipo_data,
+
+        # Distribución aliado
+        'aliado_labels': aliado_labels,
+        'aliado_data': aliado_data,
+
+        # Tendencia mensual
+        'tendencia_labels': tendencia_labels,
+        'tendencia_data': tendencia_data,
+
+        # Conocimiento SAGRILAFT
+        'total_sagrilaft': total_sagrilaft,
+        'conocen_sagrilaft': conocen_sagrilaft,
+        'no_conocen_sagrilaft': no_conocen_sagrilaft,
+        'pct_conoce_sagrilaft': pct_conoce_sagrilaft,
+
+        # Conocimiento PTEE
+        'total_ptee': total_ptee,
+        'conocen_ptee': conocen_ptee,
+        'no_conocen_ptee': no_conocen_ptee,
+        'pct_conoce_ptee': pct_conoce_ptee,
+
+        # Conocimiento SARLAFT
+        'total_sarlaft': total_sarlaft,
+        'conocen_sarlaft': conocen_sarlaft,
+        'pct_conoce_sarlaft': pct_conoce_sarlaft,
+
+        # Empresas sin actividad
+        'empresas_sin_actividad': empresas_sin_actividad,
+
+        # Actividad reciente
+        'ultimas_respuestas': ultimas_respuestas,
+
+        # Fecha actual
+        'fecha_reporte': hoy,
     })
 
 # 2. SECCIÓN EMPRESAS Y CLIENTES 

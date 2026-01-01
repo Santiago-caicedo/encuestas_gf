@@ -34,11 +34,18 @@
                 Principal
             </p>
 
-            <a href="{% url 'dashboard_home' %}" 
-               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 
+            <a href="{% url 'dashboard_home' %}"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200
                {% if request.resolver_match.url_name == 'dashboard_home' %} bg-blue-600 text-white shadow-lg shadow-blue-900/50 {% else %} text-slate-400 hover:bg-slate-800 hover:text-white {% endif %}">
-                <i class="fas fa-chart-pie w-5 text-center"></i>
-                Dashboard
+                <i class="fas fa-home w-5 text-center"></i>
+                Inicio
+            </a>
+
+            <a href="{% url 'metricas_globales' %}"
+               class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200
+               {% if request.resolver_match.url_name == 'metricas_globales' %} bg-blue-600 text-white shadow-lg shadow-blue-900/50 {% else %} text-slate-400 hover:bg-slate-800 hover:text-white {% endif %}">
+                <i class="fas fa-chart-line w-5 text-center"></i>
+                Métricas Globales
             </a>
 
             <a href="{% url 'lista_empresas' %}" 
