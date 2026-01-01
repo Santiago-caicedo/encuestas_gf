@@ -29,8 +29,28 @@ def ver_encuesta_publica(request, slug):
 
         return redirect('encuesta_exito', slug=slug)
 
+    # Calcular números de sección dinámicamente
+    seccion_num = 1  # Información General siempre es 1
+    secciones = {'info_general': seccion_num}
+
+    if empresa.tiene_sagrilaft:
+        seccion_num += 1
+        secciones['sagrilaft'] = seccion_num
+
+    if empresa.tiene_sarlaft:
+        seccion_num += 1
+        secciones['sarlaft'] = seccion_num
+
+    if empresa.tiene_ptee:
+        seccion_num += 1
+        secciones['ptee'] = seccion_num
+
+    seccion_num += 1
+    secciones['observaciones'] = seccion_num
+
     return render(request, 'formularios/encuesta_publica.html', {
-        'empresa': empresa
+        'empresa': empresa,
+        'secciones': secciones,
     })
 
 

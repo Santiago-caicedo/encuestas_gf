@@ -273,6 +273,7 @@
                 <div class="absolute top-0 left-0 w-2 h-full bg-brand"></div>
 
                 <div class="flex items-center gap-3 mb-7">
+                    <span class="bg-slate-900 text-white w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold shadow-sm">{{ secciones.sagrilaft }}</span>
                     <span class="bg-blue-50 text-blue-800 px-3 py-1.5 rounded-lg text-xs font-extrabold border border-blue-200 tracking-wide">
                         SAGRILAFT
                     </span>
@@ -333,6 +334,7 @@
                 <div class="absolute top-0 left-0 w-2 h-full bg-cyan-600"></div>
 
                 <div class="flex items-center gap-3 mb-7">
+                    <span class="bg-slate-900 text-white w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold shadow-sm">{{ secciones.sarlaft }}</span>
                     <span class="bg-cyan-50 text-cyan-800 px-3 py-1.5 rounded-lg text-xs font-extrabold border border-cyan-200 tracking-wide">
                         SARLAFT
                     </span>
@@ -393,6 +395,7 @@
                 <div class="absolute top-0 left-0 w-2 h-full bg-purple-600"></div>
 
                 <div class="flex items-center gap-3 mb-7">
+                    <span class="bg-slate-900 text-white w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold shadow-sm">{{ secciones.ptee }}</span>
                     <span class="bg-purple-50 text-purple-800 px-3 py-1.5 rounded-lg text-xs font-extrabold border border-purple-200 tracking-wide">
                         PTEE
                     </span>
@@ -448,7 +451,11 @@
             {% endif %}
 
             <div class="card-soft p-7">
-                <label class="block font-extrabold text-slate-900 mb-2">13. Observaciones y comentarios adicionales</label>
+                <div class="flex items-center gap-3 mb-6 pb-3 border-b border-slate-100">
+                    <span class="bg-slate-900 text-white w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold shadow-sm">{{ secciones.observaciones }}</span>
+                    <h3 class="text-lg font-extrabold text-slate-900">Observaciones</h3>
+                </div>
+                <label class="block font-extrabold text-slate-900 mb-2">Comentarios adicionales</label>
                 <p class="text-sm text-slate-500 mb-3 font-semibold">¿Le gustaría compartir algún comentario adicional relacionado con la encuesta realizada?</p>
                 <textarea name="observaciones" rows="3" class="w-full p-4 border border-slate-300 rounded-xl outline-none resize-none bg-white" placeholder="Escriba aquí sus comentarios..."></textarea>
             </div>
