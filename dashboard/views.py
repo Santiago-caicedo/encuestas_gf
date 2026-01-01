@@ -200,6 +200,15 @@ def metricas_globales(request):
     # ==========================================
     ultimas_respuestas = RegistroEncuesta.objects.select_related('empresa').order_by('-fecha_registro')[:15]
 
+    # ==========================================
+    # LISTADO COMPLETO DE EMPRESAS
+    # ==========================================
+    from django.db.models import Max
+    todas_empresas = EmpresaCliente.objects.filter(activo=True).annotate(
+        total_respuestas=Count('registros'),
+        ultima_respuesta=Max('registros__fecha_registro')
+    ).order_by('-total_respuestas', 'nombre')
+
     return render(request, 'dashboard/metricas_globales.html', {
         # KPIs
         'total_empresas': total_empresas,
@@ -249,6 +258,9 @@ def metricas_globales(request):
 
         # Actividad reciente
         'ultimas_respuestas': ultimas_respuestas,
+
+        # Listado completo de empresas
+        'todas_empresas': todas_empresas,
 
         # Fecha actual
         'fecha_reporte': hoy,
