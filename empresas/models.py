@@ -31,5 +31,14 @@ class EmpresaCliente(models.Model):
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Configuración personalizada de encuesta (opcional)
+    config_encuesta = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Configuración personalizada de encuesta",
+        help_text="JSON con tipos de tercero, campos y preguntas adicionales"
+    )
+
     def __str__(self):
         return self.nombre

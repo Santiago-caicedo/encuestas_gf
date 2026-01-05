@@ -331,19 +331,32 @@ def editar_empresa(request, id):
 @login_required
 def ver_metricas(request, id):
     empresa = get_object_or_404(EmpresaCliente, id=id)
-    
+
+    # Configuración personalizada de encuesta (si existe)
+    config = empresa.config_encuesta or {}
+    tipos_tercero_config = config.get('tipos_tercero', [])
+    preguntas_seccion1 = config.get('preguntas_seccion1', [])
+
+    # Crear mapeo de value -> label para tipos de tercero personalizados
+    tipos_tercero_map = {t['value']: t['label'] for t in tipos_tercero_config} if tipos_tercero_config else {
+        'CLIENTE': 'Cliente',
+        'PROVEEDOR': 'Proveedor',
+        'EMPLEADO': 'Empleado',
+        'OTRO': 'Otro'
+    }
+
     # 1. GESTIÓN DE AÑOS (VIGENCIAS)
     # Extraemos los años disponibles en los registros para llenar el selector
     anios_disponibles = empresa.registros.annotate(anio=ExtractYear('fecha_registro')).values_list('anio', flat=True).distinct().order_by('-anio')
-    
+
     anio_actual = datetime.date.today().year
-    
+
     # Intentamos obtener el año de la URL, si no, usamos el actual
     try:
         anio_seleccionado = int(request.GET.get('vigencia', anio_actual))
     except ValueError:
         anio_seleccionado = anio_actual
-    
+
     # Aseguramos que el año actual aparezca en la lista aunque no haya registros aún
     lista_anios = list(anios_disponibles)
     if anio_actual not in lista_anios:
@@ -360,7 +373,7 @@ def ver_metricas(request, id):
     f_inicio = request.GET.get('fecha_inicio')
     f_fin = request.GET.get('fecha_fin')
 
-    registros_tabla = registros_anio 
+    registros_tabla = registros_anio
 
     if f_tipo:
         registros_tabla = registros_tabla.filter(tipo_tercero=f_tipo)
@@ -375,11 +388,12 @@ def ver_metricas(request, id):
     # 4. CÁLCULO DE GRÁFICOS Y KPIs
 
     # A) Demografía (Distribución por Tipo de Tercero)
-    # NOTA: .order_by() vacío al final es CRÍTICO para limpiar el ordenamiento por fecha 
+    # NOTA: .order_by() vacío al final es CRÍTICO para limpiar el ordenamiento por fecha
     # y permitir que el annotate agrupe correctamente.
     data_distribucion = registros_anio.values('tipo_tercero').annotate(total=Count('id')).order_by()
-    
-    labels_tipos = [item['tipo_tercero'] for item in data_distribucion]
+
+    # Usar labels personalizados si existen
+    labels_tipos = [tipos_tercero_map.get(item['tipo_tercero'], item['tipo_tercero']) for item in data_distribucion]
     data_tipos = [item['total'] for item in data_distribucion]
 
     # B) SAGRILAFT (Si aplica)
@@ -389,7 +403,7 @@ def ver_metricas(request, id):
         conocen = registros_anio.filter(respuestas_data__p5_sagrilaft_conoce='SI').count()
         no_conocen = total - conocen
         stats_sagrilaft['conocimiento'] = [conocen, no_conocen]
-        
+
         # Pregunta 8: Canales de Denuncia
         saben_denunciar = registros_anio.filter(respuestas_data__p8_sagrilaft_denuncia='SI').count()
         no_saben = total - saben_denunciar
@@ -402,7 +416,7 @@ def ver_metricas(request, id):
         conocen_sar = registros_anio.filter(respuestas_data__p5_sarlaft_conoce='SI').count()
         no_conocen_sar = total - conocen_sar
         stats_sarlaft['conocimiento'] = [conocen_sar, no_conocen_sar]
-        
+
         # Pregunta 8: Canales de Denuncia SARLAFT
         saben_denunciar_sar = registros_anio.filter(respuestas_data__p8_sarlaft_denuncia='SI').count()
         no_saben_sar = total - saben_denunciar_sar
@@ -415,6 +429,21 @@ def ver_metricas(request, id):
         conocen_ptee = registros_anio.filter(respuestas_data__p9_ptee_conoce='SI').count()
         no_conocen_ptee = total - conocen_ptee
         stats_ptee['conocimiento'] = [conocen_ptee, no_conocen_ptee]
+
+    # E) Preguntas adicionales de Sección 1 (si hay configuración personalizada)
+    stats_preguntas_adicionales = []
+    if preguntas_seccion1 and total > 0:
+        for pregunta in preguntas_seccion1:
+            nombre = pregunta.get('name', '')
+            texto = pregunta.get('texto', '')
+            si_count = registros_anio.filter(**{f'respuestas_data__{nombre}': 'SI'}).count()
+            no_count = total - si_count
+            stats_preguntas_adicionales.append({
+                'nombre': nombre,
+                'texto': texto,
+                'si': si_count,
+                'no': no_count
+            })
 
     # 5. RENDERIZADO
     return render(request, 'dashboard/metricas.html', {
@@ -429,8 +458,11 @@ def ver_metricas(request, id):
         'labels_tipos': labels_tipos,
         'data_tipos': data_tipos,
         'stats_sagrilaft': stats_sagrilaft,
-        'stats_sarlaft': stats_sarlaft, # Nuevo
+        'stats_sarlaft': stats_sarlaft,
         'stats_ptee': stats_ptee,
+        # Configuración personalizada
+        'tipos_tercero_config': tipos_tercero_config,
+        'stats_preguntas_adicionales': stats_preguntas_adicionales,
     })
 
 @login_required
@@ -484,6 +516,11 @@ def exportar_excel(request, id):
     empresa = get_object_or_404(EmpresaCliente, id=id)
     registros = empresa.registros.all().order_by('-fecha_registro')
 
+    # Configuración personalizada de encuesta (si existe)
+    config = empresa.config_encuesta or {}
+    campos_seccion1 = config.get('campos_seccion1', [])
+    preguntas_seccion1 = config.get('preguntas_seccion1', [])
+
     # 1. APLICAMOS LOS MISMOS FILTROS (Para exportar lo que se ve)
     f_tipo = request.GET.get('tipo')
     f_inicio = request.GET.get('fecha_inicio')
@@ -516,34 +553,42 @@ def exportar_excel(request, id):
 
     # 3. ESCRIBIMOS EL ENCABEZADO
     headers = [
-        'ID', 'Fecha Registro', 'Tipo Tercero', 'Nombre / Razón Social', 
+        'ID', 'Fecha Registro', 'Tipo Tercero', 'Nombre / Razón Social',
         'Área', 'Cargo', 'IP Origen'
     ]
-    
+
+    # Columnas de campos adicionales personalizados (ej: NIT/Cédula)
+    for campo in campos_seccion1:
+        headers.append(campo.get('label', campo.get('name', 'Campo')))
+
+    # Columnas de preguntas adicionales personalizadas
+    for pregunta in preguntas_seccion1:
+        headers.append(pregunta.get('texto', pregunta.get('name', 'Pregunta'))[:50])
+
     # Agregamos columnas dinámicas según lo contratado
     if empresa.tiene_sagrilaft:
         headers.extend([
-            'SAGRILAFT - ¿Conoce Sistema?', 
-            'SAGRILAFT - ¿Datos Actualizados?', 
-            'SAGRILAFT - ¿Fue Informado?', 
+            'SAGRILAFT - ¿Conoce Sistema?',
+            'SAGRILAFT - ¿Datos Actualizados?',
+            'SAGRILAFT - ¿Fue Informado?',
             'SAGRILAFT - ¿Conoce Canales Denuncia?'
         ])
-    
+
     if empresa.tiene_ptee:
         headers.extend([
-            'PTEE - ¿Conoce Programa?', 
-            'PTEE - ¿Conoce Código Ética?', 
-            'PTEE - ¿Sabe Conflicto Interés?', 
+            'PTEE - ¿Conoce Programa?',
+            'PTEE - ¿Conoce Código Ética?',
+            'PTEE - ¿Sabe Conflicto Interés?',
             'PTEE - ¿Conoce Canales Soborno?'
         ])
-    
+
     headers.append('Observaciones')
     writer.writerow(headers)
 
     # 4. ESCRIBIMOS LAS FILAS
     for reg in registros:
-        data = reg.respuestas_data # El JSON
-        
+        data = reg.respuestas_data  # El JSON
+
         row = [
             reg.id,
             reg.fecha_registro.strftime("%d/%m/%Y %H:%M"),
@@ -553,6 +598,14 @@ def exportar_excel(request, id):
             reg.cargo,
             reg.ip_origen
         ]
+
+        # Datos de campos adicionales personalizados
+        for campo in campos_seccion1:
+            row.append(data.get(campo.get('name', ''), '-'))
+
+        # Datos de preguntas adicionales personalizadas
+        for pregunta in preguntas_seccion1:
+            row.append(data.get(pregunta.get('name', ''), '-'))
 
         if empresa.tiene_sagrilaft:
             row.extend([
@@ -569,9 +622,9 @@ def exportar_excel(request, id):
                 data.get('p11_ptee_conflicto', '-'),
                 data.get('p12_ptee_corrupcion', '-')
             ])
-            
+
         row.append(data.get('observaciones', ''))
-        
+
         writer.writerow(row)
 
     return response

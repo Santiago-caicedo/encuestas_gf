@@ -4,9 +4,24 @@ from .models import RegistroEncuesta
 from core.security import sanitize_string, sanitize_dict, get_client_ip, rate_limit
 
 
+# Tipos de tercero por defecto (para empresas sin configuración personalizada)
+TIPOS_TERCERO_DEFAULT = [
+    {'value': 'CLIENTE', 'label': 'Cliente'},
+    {'value': 'PROVEEDOR', 'label': 'Proveedor'},
+    {'value': 'EMPLEADO', 'label': 'Empleado'},
+    {'value': 'OTRO', 'label': 'Otro'},
+]
+
+
 @rate_limit(key_prefix='encuesta', max_requests=10, window_seconds=60)
 def ver_encuesta_publica(request, slug):
     empresa = get_object_or_404(EmpresaCliente, slug=slug, activo=True)
+
+    # Extraer configuración personalizada o usar defaults
+    config = empresa.config_encuesta or {}
+    tipos_tercero = config.get('tipos_tercero', TIPOS_TERCERO_DEFAULT)
+    campos_seccion1 = config.get('campos_seccion1', [])
+    preguntas_seccion1 = config.get('preguntas_seccion1', [])
 
     if request.method == 'POST':
         datos = request.POST
@@ -51,6 +66,9 @@ def ver_encuesta_publica(request, slug):
     return render(request, 'formularios/encuesta_publica.html', {
         'empresa': empresa,
         'secciones': secciones,
+        'tipos_tercero': tipos_tercero,
+        'campos_seccion1': campos_seccion1,
+        'preguntas_seccion1': preguntas_seccion1,
     })
 
 
