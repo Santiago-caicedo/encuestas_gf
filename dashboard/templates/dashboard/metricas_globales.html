@@ -1,4 +1,5 @@
 {% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
 
 {% block content %}
 <div class="space-y-6">
@@ -402,7 +403,7 @@
 </div>
 
 <!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
 <script>
     // Colores consistentes
     const colores = {

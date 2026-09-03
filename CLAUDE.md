@@ -8,7 +8,7 @@ Sistema web para gestionar encuestas de cumplimiento normativo (SAGRILAFT, SARLA
 
 - **Backend:** Django 5.2.9
 - **Base de datos:** PostgreSQL
-- **Frontend:** Tailwind CSS (CDN), Chart.js, Font Awesome
+- **Frontend:** Tailwind CSS (compilado localmente, ver "Build de CSS"), Chart.js, Font Awesome e Inter autohospedados en `static/`
 - **Almacenamiento:** AWS S3 (producción), Local (desarrollo)
 - **Servidor:** WSGI/ASGI
 
@@ -128,6 +128,21 @@ e = EmpresaCliente.objects.get(slug='prodesa')
 print(json.dumps(e.config_encuesta, indent=2, ensure_ascii=False))
 "
 ```
+
+## Build de CSS (Tailwind)
+
+Los estilos NO usan CDN (fallaba en redes corporativas de clientes). Tailwind se compila con Node a `static/css/tailwind.css`; Font Awesome, Inter y Chart.js viven copiados en `static/`.
+
+```bash
+# Tras añadir/cambiar clases de Tailwind en templates o en dashboard/forms.py:
+npm run build:css        # compila y minifica
+npm run watch:css        # modo watch durante desarrollo
+```
+
+- Config en `tailwind.config.js` (escanea templates y los .py de las apps, porque `dashboard/forms.py` define clases en widgets).
+- `node_modules/` está en .gitignore; en una máquina nueva: `npm install` y luego `npm run build:css`.
+- Los archivos generados en `static/` SÍ van al repo (el servidor no necesita Node).
+- En deploy sigue haciendo falta `collectstatic` para subirlos a S3.
 
 ## Variables de Entorno (.env)
 
