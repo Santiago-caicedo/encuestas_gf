@@ -1,5 +1,14 @@
 from django.db import models
 
+
+class EmpresaClienteQuerySet(models.QuerySet):
+    def visibles_para(self, user):
+        """Oculta las empresas marcadas 'solo superadmin' a quien no lo sea."""
+        if user.is_superuser:
+            return self
+        return self.exclude(solo_superadmin=True)
+
+
 class EmpresaCliente(models.Model):
 
     # Opciones para el selector
@@ -31,6 +40,13 @@ class EmpresaCliente(models.Model):
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Visibilidad restringida: solo el superusuario ve y gestiona esta empresa
+    solo_superadmin = models.BooleanField(
+        default=False,
+        verbose_name="Solo para Superadmin",
+        help_text="Si está activo, esta empresa solo la ve y gestiona el superusuario"
+    )
+
     # Configuración personalizada de encuesta (opcional)
     config_encuesta = models.JSONField(
         null=True,
@@ -39,6 +55,8 @@ class EmpresaCliente(models.Model):
         verbose_name="Configuración personalizada de encuesta",
         help_text="JSON con tipos de tercero, campos y preguntas adicionales"
     )
+
+    objects = EmpresaClienteQuerySet.as_manager()
 
     def __str__(self):
         return self.nombre

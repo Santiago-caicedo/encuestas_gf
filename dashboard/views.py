@@ -18,12 +18,15 @@ from dateutil.relativedelta import relativedelta
 
 @login_required
 def dashboard_home(request):
-    # Métricas Globales
-    total_empresas = EmpresaCliente.objects.filter(activo=True).count()
-    total_registros = RegistroEncuesta.objects.count()
+    # Solo las empresas (y registros) que este usuario puede ver
+    empresas_visibles = EmpresaCliente.objects.visibles_para(request.user)
 
-    # Actividad Reciente (Últimos 10 registros de CUALQUIER empresa)
-    ultimos_registros = RegistroEncuesta.objects.all().order_by('-fecha_registro')[:10]
+    # Métricas Globales
+    total_empresas = empresas_visibles.filter(activo=True).count()
+    total_registros = RegistroEncuesta.objects.filter(empresa__in=empresas_visibles).count()
+
+    # Actividad Reciente (Últimos 10 registros de CUALQUIER empresa visible)
+    ultimos_registros = RegistroEncuesta.objects.filter(empresa__in=empresas_visibles).order_by('-fecha_registro')[:10]
 
     return render(request, 'dashboard/global_home.html', {
         'total_empresas': total_empresas,
@@ -37,6 +40,10 @@ def metricas_globales(request):
     """
     Dashboard de métricas globales con KPIs estratégicos de todo el sistema.
     """
+    # Solo las empresas (y sus registros) que este usuario puede ver
+    empresas_visibles = EmpresaCliente.objects.visibles_para(request.user)
+    registros_visibles = RegistroEncuesta.objects.filter(empresa__in=empresas_visibles)
+
     hoy = timezone.now()
     inicio_mes_actual = hoy.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     inicio_mes_anterior = (inicio_mes_actual - relativedelta(months=1))
@@ -45,12 +52,12 @@ def metricas_globales(request):
     # ==========================================
     # KPIs PRINCIPALES
     # ==========================================
-    total_empresas = EmpresaCliente.objects.filter(activo=True).count()
-    total_respuestas = RegistroEncuesta.objects.count()
+    total_empresas = empresas_visibles.filter(activo=True).count()
+    total_respuestas = registros_visibles.count()
 
     # Respuestas este mes vs mes anterior
-    respuestas_mes_actual = RegistroEncuesta.objects.filter(fecha_registro__gte=inicio_mes_actual).count()
-    respuestas_mes_anterior = RegistroEncuesta.objects.filter(
+    respuestas_mes_actual = registros_visibles.filter(fecha_registro__gte=inicio_mes_actual).count()
+    respuestas_mes_anterior = registros_visibles.filter(
         fecha_registro__gte=inicio_mes_anterior,
         fecha_registro__lt=inicio_mes_actual
     ).count()
@@ -62,7 +69,7 @@ def metricas_globales(request):
         variacion_mensual = 100 if respuestas_mes_actual > 0 else 0
 
     # Respuestas este año
-    respuestas_anio = RegistroEncuesta.objects.filter(fecha_registro__gte=inicio_anio).count()
+    respuestas_anio = registros_visibles.filter(fecha_registro__gte=inicio_anio).count()
 
     # Promedio de respuestas por empresa
     promedio_por_empresa = round(total_respuestas / total_empresas, 1) if total_empresas > 0 else 0
@@ -70,7 +77,7 @@ def metricas_globales(request):
     # ==========================================
     # TOP 10 EMPRESAS CON MÁS RESPUESTAS
     # ==========================================
-    top_empresas = EmpresaCliente.objects.filter(activo=True).annotate(
+    top_empresas = empresas_visibles.filter(activo=True).annotate(
         total_respuestas=Count('registros')
     ).order_by('-total_respuestas')[:10]
 
@@ -80,7 +87,7 @@ def metricas_globales(request):
     # ==========================================
     # DISTRIBUCIÓN POR TIPO DE TERCERO (GLOBAL)
     # ==========================================
-    distribucion_tipo = RegistroEncuesta.objects.values('tipo_tercero').annotate(
+    distribucion_tipo = registros_visibles.values('tipo_tercero').annotate(
         total=Count('id')
     ).order_by('-total')
 
@@ -90,7 +97,7 @@ def metricas_globales(request):
     # ==========================================
     # DISTRIBUCIÓN POR ALIADO
     # ==========================================
-    distribucion_aliado = EmpresaCliente.objects.filter(activo=True).values('aliado').annotate(
+    distribucion_aliado = empresas_visibles.filter(activo=True).values('aliado').annotate(
         total=Count('id')
     )
 
@@ -110,7 +117,7 @@ def metricas_globales(request):
     # ==========================================
     hace_12_meses = hoy - relativedelta(months=12)
 
-    tendencia_mensual = RegistroEncuesta.objects.filter(
+    tendencia_mensual = registros_visibles.filter(
         fecha_registro__gte=hace_12_meses
     ).annotate(
         mes=TruncMonth('fecha_registro')
@@ -136,8 +143,8 @@ def metricas_globales(request):
     # ==========================================
     # CONOCIMIENTO SAGRILAFT (GLOBAL)
     # ==========================================
-    empresas_sagrilaft = EmpresaCliente.objects.filter(activo=True, tiene_sagrilaft=True)
-    registros_sagrilaft = RegistroEncuesta.objects.filter(empresa__in=empresas_sagrilaft)
+    empresas_sagrilaft = empresas_visibles.filter(activo=True, tiene_sagrilaft=True)
+    registros_sagrilaft = registros_visibles.filter(empresa__in=empresas_sagrilaft)
     total_sagrilaft = registros_sagrilaft.count()
 
     if total_sagrilaft > 0:
@@ -152,8 +159,8 @@ def metricas_globales(request):
     # ==========================================
     # CONOCIMIENTO PTEE (GLOBAL)
     # ==========================================
-    empresas_ptee = EmpresaCliente.objects.filter(activo=True, tiene_ptee=True)
-    registros_ptee = RegistroEncuesta.objects.filter(empresa__in=empresas_ptee)
+    empresas_ptee = empresas_visibles.filter(activo=True, tiene_ptee=True)
+    registros_ptee = registros_visibles.filter(empresa__in=empresas_ptee)
     total_ptee = registros_ptee.count()
 
     if total_ptee > 0:
@@ -168,8 +175,8 @@ def metricas_globales(request):
     # ==========================================
     # CONOCIMIENTO SARLAFT (GLOBAL)
     # ==========================================
-    empresas_sarlaft = EmpresaCliente.objects.filter(activo=True, tiene_sarlaft=True)
-    registros_sarlaft = RegistroEncuesta.objects.filter(empresa__in=empresas_sarlaft)
+    empresas_sarlaft = empresas_visibles.filter(activo=True, tiene_sarlaft=True)
+    registros_sarlaft = registros_visibles.filter(empresa__in=empresas_sarlaft)
     total_sarlaft = registros_sarlaft.count()
 
     if total_sarlaft > 0:
@@ -183,11 +190,11 @@ def metricas_globales(request):
     # EMPRESAS SIN ACTIVIDAD (últimos 30 días)
     # ==========================================
     hace_30_dias = hoy - relativedelta(days=30)
-    empresas_activas_reciente = RegistroEncuesta.objects.filter(
+    empresas_activas_reciente = registros_visibles.filter(
         fecha_registro__gte=hace_30_dias
     ).values_list('empresa_id', flat=True).distinct()
 
-    empresas_sin_actividad = EmpresaCliente.objects.filter(
+    empresas_sin_actividad = empresas_visibles.filter(
         activo=True
     ).exclude(
         id__in=empresas_activas_reciente
@@ -198,13 +205,13 @@ def metricas_globales(request):
     # ==========================================
     # ACTIVIDAD RECIENTE
     # ==========================================
-    ultimas_respuestas = RegistroEncuesta.objects.select_related('empresa').order_by('-fecha_registro')[:15]
+    ultimas_respuestas = registros_visibles.select_related('empresa').order_by('-fecha_registro')[:15]
 
     # ==========================================
     # LISTADO COMPLETO DE EMPRESAS
     # ==========================================
     from django.db.models import Max
-    todas_empresas = EmpresaCliente.objects.filter(activo=True).annotate(
+    todas_empresas = empresas_visibles.filter(activo=True).annotate(
         total_respuestas=Count('registros'),
         ultima_respuesta=Max('registros__fecha_registro')
     ).order_by('-total_respuestas', 'nombre')
@@ -274,7 +281,7 @@ def lista_empresas(request):
     filtro_aliado = request.GET.get('aliado', '')
 
     # 2. Query Base
-    empresas = EmpresaCliente.objects.all().order_by('-created_at')
+    empresas = EmpresaCliente.objects.visibles_para(request.user).order_by('-created_at')
 
     # 3. Aplicar Filtros
     if query:
@@ -293,29 +300,29 @@ def lista_empresas(request):
 @login_required
 def crear_empresa(request):
     if request.method == 'POST':
-        form = EmpresaForm(request.POST, request.FILES)
+        form = EmpresaForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('lista_empresas')
     else:
-        form = EmpresaForm()
+        form = EmpresaForm(user=request.user)
     return render(request, 'dashboard/crear_empresa.html', {'form': form})
 
 
 @login_required
 def editar_empresa(request, id):
     # Buscamos la empresa, si no existe devuelve error 404
-    empresa = get_object_or_404(EmpresaCliente, id=id)
+    empresa = get_object_or_404(EmpresaCliente.objects.visibles_para(request.user), id=id)
     
     if request.method == 'POST':
         # 'instance=empresa' es la CLAVE: le dice a Django que actualice este registro, no que cree uno nuevo
-        form = EmpresaForm(request.POST, request.FILES, instance=empresa)
+        form = EmpresaForm(request.POST, request.FILES, instance=empresa, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('lista_empresas')
     else:
         # Pre-llenamos el formulario con los datos actuales
-        form = EmpresaForm(instance=empresa)
+        form = EmpresaForm(instance=empresa, user=request.user)
 
     # Reutilizamos la plantilla de crear, pero le pasamos la variable 'editar': True
     return render(request, 'dashboard/crear_empresa.html', {
@@ -330,7 +337,7 @@ def editar_empresa(request, id):
 
 @login_required
 def ver_metricas(request, id):
-    empresa = get_object_or_404(EmpresaCliente, id=id)
+    empresa = get_object_or_404(EmpresaCliente.objects.visibles_para(request.user), id=id)
 
     # Configuración personalizada de encuesta (si existe)
     config = empresa.config_encuesta or {}
@@ -467,7 +474,10 @@ def ver_metricas(request, id):
 
 @login_required
 def ver_detalle_respuesta(request, id):
-    registro = get_object_or_404(RegistroEncuesta, id=id)
+    registro = get_object_or_404(
+        RegistroEncuesta.objects.filter(empresa__in=EmpresaCliente.objects.visibles_para(request.user)),
+        id=id
+    )
     return render(request, 'dashboard/detalle_respuesta.html', {
         'registro': registro,
         'empresa': registro.empresa
@@ -477,7 +487,7 @@ def ver_detalle_respuesta(request, id):
 
 @login_required
 def ver_todos_registros(request, id):
-    empresa = get_object_or_404(EmpresaCliente, id=id)
+    empresa = get_object_or_404(EmpresaCliente.objects.visibles_para(request.user), id=id)
     registros = empresa.registros.all().order_by('-fecha_registro')
 
     # Filtros
@@ -513,7 +523,7 @@ def exportar_excel(request, id):
     # SEGURIDAD: Límite máximo de registros para evitar memory exhaustion
     MAX_EXPORT_RECORDS = 10000
 
-    empresa = get_object_or_404(EmpresaCliente, id=id)
+    empresa = get_object_or_404(EmpresaCliente.objects.visibles_para(request.user), id=id)
     registros = empresa.registros.all().order_by('-fecha_registro')
 
     # Configuración personalizada de encuesta (si existe)

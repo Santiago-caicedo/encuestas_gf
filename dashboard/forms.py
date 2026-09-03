@@ -9,7 +9,7 @@ from core.security import validate_hex_color
 class EmpresaForm(forms.ModelForm):
     class Meta:
         model = EmpresaCliente
-        fields = ['nombre', 'slug', 'aliado', 'logo', 'color_primario', 'email_soporte', 'tiene_sagrilaft', 'tiene_sarlaft', 'tiene_ptee']
+        fields = ['nombre', 'slug', 'aliado', 'logo', 'color_primario', 'email_soporte', 'tiene_sagrilaft', 'tiene_sarlaft', 'tiene_ptee', 'solo_superadmin']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'w-full p-2 border rounded border-gray-300'}),
             'aliado': forms.Select(attrs={'class': 'w-full p-2 border rounded border-gray-300 bg-white'}),
@@ -19,7 +19,15 @@ class EmpresaForm(forms.ModelForm):
             'tiene_sagrilaft': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded text-blue-600 focus:ring-blue-500'}),
             'tiene_sarlaft': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded text-cyan-600 focus:ring-cyan-500'}),
             'tiene_ptee': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded text-purple-600 focus:ring-purple-500'}),
+            'solo_superadmin': forms.CheckboxInput(attrs={'class': 'w-5 h-5 rounded text-red-600 focus:ring-red-500'}),
         }
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # El check "solo superadmin" no existe para usuarios normales:
+        # ni se muestra ni se acepta por POST.
+        if user is None or not user.is_superuser:
+            self.fields.pop('solo_superadmin')
 
     def clean_color_primario(self):
         """SEGURIDAD: Validar que el color sea un hex válido para prevenir CSS injection."""
